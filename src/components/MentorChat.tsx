@@ -1,0 +1,280 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Play, Square, Mic, MicOff, Send, Lightbulb, Search, Loader2 } from 'lucide-react';
+import Markdown from 'react-markdown';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+// Convert audio helper
+const pcmToBase64 = (channelData: Float32Array) => {
+  const pcm16 = new Int16Array(channelData.length);
+  for (let i = 0; i < channelData.length; i++) {
+    const s = Math.max(-1, Math.min(1, channelData[i]));
+    pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  }
+  const buffer = new Uint8Array(pcm16.buffer);
+  let binary = '';
+  for (let i = 0; i < buffer.byteLength; i++) {
+    binary += String.fromCharCode(buffer[i]);
+  }
+  return btoa(binary);
+};
+
+interface Message {
+  role: 'user' | 'model';
+  parts: { text: string }[];
+}
+
+export default function MentorChat({ activeTopic }: { activeTopic: string | null }) {
+  const [messages, setMessages] = useState<Message[]>([
+    { role: 'model', parts: [{ text: 'Manda! Onde você travou?' }] }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<'text' | 'voice'>('text');
+  const [useHighThinking, setUseHighThinking] = useState(false);
+  const [useSearch, setUseSearch] = useState(false);
+
+  // Voice state
+  const [isRecording, setIsRecording] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const outputAudioCtxRef = useRef<AudioContext | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const nextStartTimeRef = useRef(0);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const explainTopic = async () => {
+    if (!activeTopic) return;
+    setLoading(true);
+    setMessages(prev => [...prev, { role: 'user', parts: [{ text: `Explique o tópico: "${activeTopic}" de forma rápida e prática.` }] }]);
+    try {
+      const res = await fetch('/api/explain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: activeTopic })
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: 'model', parts: [{ text: data.text }] }]);
+    } catch(err) {
+      console.error(err);
+    }
+    setLoading(false);
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+    const newMsg: Message = { role: 'user', parts: [{ text: input }] };
+    const updatedMessages = [...messages, newMsg];
+    setMessages(updatedMessages);
+    setInput('');
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: updatedMessages,
+          useDeepThinking: useHighThinking,
+          searchGrounding: useSearch
+        })
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: 'model', parts: [{ text: data.text }] }]);
+    } catch(err) {
+      console.error(err);
+    }
+    setLoading(false);
+  };
+
+  const startVoice = async () => {
+    try {
+      const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/live`;
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      const inputAudioCtx = new AudioContext({ sampleRate: 16000 });
+      audioCtxRef.current = inputAudioCtx;
+
+      const outputAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+      outputAudioCtxRef.current = outputAudioCtx;
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const source = inputAudioCtx.createMediaStreamSource(stream);
+      const processor = inputAudioCtx.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
+
+      source.connect(processor);
+      processor.connect(inputAudioCtx.destination);
+
+      nextStartTimeRef.current = 0;
+
+      processor.onaudioprocess = (e) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          const base64 = pcmToBase64(e.inputBuffer.getChannelData(0));
+          ws.send(JSON.stringify({ audio: base64 }));
+        }
+      };
+
+      ws.onmessage = async (event) => {
+         // handle audio response
+         const msg = JSON.parse(event.data);
+         if (msg.audio) {
+            const binary = atob(msg.audio);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+              bytes[i] = binary.charCodeAt(i);
+            }
+            const buffer = bytes.buffer;
+            try {
+              const audioData = await outputAudioCtx.decodeAudioData(buffer);
+              const source = outputAudioCtx.createBufferSource();
+              source.buffer = audioData;
+              source.connect(outputAudioCtx.destination);
+              
+              if (nextStartTimeRef.current < outputAudioCtx.currentTime) {
+                 nextStartTimeRef.current = outputAudioCtx.currentTime;
+              }
+              source.start(nextStartTimeRef.current);
+              nextStartTimeRef.current += audioData.duration;
+            } catch(e) {
+               console.error("Audio decode error", e);
+            }
+         }
+         if (msg.interrupted) {
+            nextStartTimeRef.current = 0; // simplistic interrupt handling
+         }
+      };
+
+      setIsRecording(true);
+    } catch(err) {
+      console.error(err);
+    }
+  };
+
+  const stopVoice = () => {
+    if (processorRef.current) processorRef.current.disconnect();
+    if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+    if (audioCtxRef.current) audioCtxRef.current.close();
+    if (wsRef.current) wsRef.current.close();
+    setIsRecording(false);
+  };
+
+  const toggleVoiceMode = () => {
+    if (mode === 'voice' && isRecording) {
+      stopVoice();
+    }
+    setMode(mode === 'text' ? 'voice' : 'text');
+  };
+
+  return (
+    <div className="flex flex-col h-[500px] bg-neutral-900/50 rounded-2xl border border-neutral-800 backdrop-blur-sm overflow-hidden text-sm">
+      <div className="p-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/80">
+        <h3 className="font-semibold text-neutral-200">Mentor IA</h3>
+        <div className="flex items-center gap-2">
+           <button onClick={toggleVoiceMode} className={cn("p-1.5 rounded-md transition-colors", mode === 'voice' ? "bg-indigo-500/20 text-indigo-400" : "text-neutral-500 hover:text-white")}>
+             <Mic className="w-4 h-4" />
+           </button>
+        </div>
+      </div>
+
+      {mode === 'text' ? (
+        <>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.map((m, i) => (
+              <div key={i} className={cn("flex", m.role === 'user' ? "justify-end" : "justify-start")}>
+                <div className={cn("max-w-[85%] rounded-2xl px-4 py-2", m.role === 'user' ? "bg-indigo-600 text-white" : "bg-neutral-800 text-neutral-200")}>
+                  {m.role === 'model' ? (
+                    <div className="prose prose-invert prose-sm leading-relaxed max-w-none prose-p:my-1 prose-ul:my-1 prose-ul:pl-4 prose-li:my-0.5">
+                      <Markdown>{m.parts[0].text}</Markdown>
+                    </div>
+                  ) : (
+                    m.parts[0].text
+                  )}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-neutral-800 text-neutral-400 rounded-2xl px-4 py-2 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Ganhando contexto...
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {activeTopic && (
+            <div className="px-4 py-2 bg-neutral-900/50 border-t border-neutral-800 flex flex-wrap gap-2">
+              <button onClick={explainTopic} className="text-xs px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-full transition-colors flex items-center gap-1.5">
+                <Lightbulb className="w-3.5 h-3.5 text-yellow-500" />
+                Explique o tópico atual rápido
+              </button>
+            </div>
+          )}
+
+          <div className="p-3 bg-neutral-900/80 border-t border-neutral-800">
+            <div className="mb-2 flex items-center gap-3 px-2">
+               <label className="flex items-center gap-1.5 text-xs text-neutral-500 cursor-pointer hover:text-neutral-300">
+                 <input type="checkbox" checked={useHighThinking} onChange={e => setUseHighThinking(e.target.checked)} className="rounded border-neutral-700 bg-neutral-800 text-indigo-500 focus:ring-offset-0 focus:ring-0" />
+                 Pensamento profundo
+               </label>
+               <label className="flex items-center gap-1.5 text-xs text-neutral-500 cursor-pointer hover:text-neutral-300">
+                 <input type="checkbox" checked={useSearch} onChange={e => setUseSearch(e.target.checked)} className="rounded border-neutral-700 bg-neutral-800 text-indigo-500 focus:ring-offset-0 focus:ring-0" />
+                 Pesquisa web
+               </label>
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Qual o problema?"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && sendMessage()}
+                className="w-full bg-neutral-800 border border-neutral-700 rounded-xl pl-4 pr-12 py-3 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-indigo-500"
+              />
+              <button
+                onClick={sendMessage}
+                disabled={loading || !input.trim()}
+                className="absolute right-2 top-2 p-1.5 bg-indigo-500 hover:bg-indigo-600 disabled:bg-neutral-700 text-white rounded-lg transition-colors"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-6">
+          <div className="w-24 h-24 rounded-full bg-neutral-800 flex items-center justify-center relative">
+             <div className={cn("absolute inset-0 rounded-full transition-all duration-1000", isRecording ? "bg-indigo-500/20 scale-125 animate-pulse" : "bg-transparent scale-100")} />
+             <Mic className={cn("w-10 h-10 transition-colors z-10", isRecording ? "text-indigo-400" : "text-neutral-500")} />
+          </div>
+          <div>
+            <p className="text-white font-medium mb-1">Conversa por voz</p>
+            <p className="text-neutral-400 text-sm">Pratique conceitos falando diretamente comigo. Ideal pra momentos de cansaço visual.</p>
+          </div>
+          <button 
+            onClick={isRecording ? stopVoice : startVoice}
+            className={cn("px-6 py-3 rounded-full flex items-center gap-2 font-medium transition-all", isRecording ? "bg-red-500/20 text-red-500 hover:bg-red-500/30" : "bg-indigo-500 text-white hover:bg-indigo-600 shadow-xl shadow-indigo-500/20")}
+          >
+            {isRecording ? <Square className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+            {isRecording ? "Encerrar conversa" : "Iniciar conversa"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Mentor TDAH",
+  "description": "App de estudos para Trilha SENAI (Front-End e Back-End) com foco em produtividade para TDAH na madrugada.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
