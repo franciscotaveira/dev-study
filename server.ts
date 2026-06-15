@@ -40,6 +40,23 @@ async function startServer() {
     }
   });
 
+  app.post("/api/review", async (req, res) => {
+    try {
+      const { topic } = req.body;
+      const prompt = `You are a SENAI Programming Mentor. Generate exactly ONE quick, practical review question about the topic: "${topic}". The question should be direct and test active recall. Keep it under 2 sentences.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: prompt,
+      });
+
+      res.json({ text: response.text });
+    } catch (e: any) {
+      console.error(e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Chatbot mentor
   app.post("/api/chat", async (req, res) => {
     try {
@@ -114,7 +131,7 @@ async function startServer() {
           if (audio) {
             session.sendRealtimeInput({
               audio: { data: audio, mimeType: "audio/pcm;rate=16000" },
-            }).catch(console.error);
+            });
           }
         } catch(e) { console.error(e); }
       });

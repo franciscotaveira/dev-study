@@ -28,7 +28,7 @@ interface Message {
   parts: { text: string }[];
 }
 
-export default function MentorChat({ activeTopic }: { activeTopic: string | null }) {
+export default function MentorChat({ activeTopic, isNightMode }: { activeTopic: string | null, isNightMode?: boolean }) {
   const [messages, setMessages] = useState<Message[]>([
     { role: 'model', parts: [{ text: 'Manda! Onde você travou?' }] }
   ]);
@@ -37,6 +37,10 @@ export default function MentorChat({ activeTopic }: { activeTopic: string | null
   const [mode, setMode] = useState<'text' | 'voice'>('text');
   const [useHighThinking, setUseHighThinking] = useState(false);
   const [useSearch, setUseSearch] = useState(false);
+
+  // Dictation state
+  const [isDictating, setIsDictating] = useState(false);
+  const recognitionRef = useRef<any>(null);
 
   // Voice state
   const [isRecording, setIsRecording] = useState(false);
@@ -52,6 +56,53 @@ export default function MentorChat({ activeTopic }: { activeTopic: string | null
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const toggleDictation = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Seu navegador não suporta reconhecimento de voz.");
+      return;
+    }
+
+    if (isDictating) {
+      if (recognitionRef.current) recognitionRef.current.stop();
+      setIsDictating(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'pt-BR';
+
+    let finalTranscript = input ? input + ' ' : '';
+
+    recognition.onresult = (event: any) => {
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+          setInput(finalTranscript);
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+          setInput(finalTranscript + interimTranscript);
+        }
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error", event.error);
+      setIsDictating(false);
+    };
+
+    recognition.onend = () => {
+      setIsDictating(false);
+    };
+
+    recognition.start();
+    setIsDictating(true);
+  };
 
   const explainTopic = async () => {
     if (!activeTopic) return;
@@ -73,6 +124,12 @@ export default function MentorChat({ activeTopic }: { activeTopic: string | null
 
   const sendMessage = async () => {
     if (!input.trim()) return;
+
+    if (isDictating && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsDictating(false);
+    }
+
     const newMsg: Message = { role: 'user', parts: [{ text: input }] };
     const updatedMessages = [...messages, newMsg];
     setMessages(updatedMessages);
@@ -180,9 +237,9 @@ export default function MentorChat({ activeTopic }: { activeTopic: string | null
   };
 
   return (
-    <div className="flex flex-col h-[500px] bg-neutral-900/50 rounded-2xl border border-neutral-800 backdrop-blur-sm overflow-hidden text-sm">
-      <div className="p-4 border-b border-neutral-800 flex items-center justify-between bg-neutral-900/80">
-        <h3 className="font-semibold text-neutral-200">Mentor IA</h3>
+    <div className={cn("flex flex-col h-[500px] rounded-2xl border backdrop-blur-sm overflow-hidden text-sm transition-colors duration-500", isNightMode ? "bg-black/20 border-neutral-900/50" : "bg-neutral-900/50 border-neutral-800")}>
+      <div className={cn("p-4 border-b flex items-center justify-between transition-colors", isNightMode ? "border-neutral-900 bg-neutral-950 text-neutral-500" : "border-neutral-800 bg-neutral-900/80 text-neutral-200")}>
+        <h3 className="font-semibold">Mentor IA</h3>
         <div className="flex items-center gap-2">
            <button onClick={toggleVoiceMode} className={cn("p-1.5 rounded-md transition-colors", mode === 'voice' ? "bg-indigo-500/20 text-indigo-400" : "text-neutral-500 hover:text-white")}>
              <Mic className="w-4 h-4" />
@@ -226,7 +283,7 @@ export default function MentorChat({ activeTopic }: { activeTopic: string | null
             </div>
           )}
 
-          <div className="p-3 bg-neutral-900/80 border-t border-neutral-800">
+          <div className={cn("p-3 border-t", isNightMode ? "bg-black/40 border-neutral-900/50" : "bg-neutral-900/80 border-neutral-800")}>
             <div className="mb-2 flex items-center gap-3 px-2">
                <label className="flex items-center gap-1.5 text-xs text-neutral-500 cursor-pointer hover:text-neutral-300">
                  <input type="checkbox" checked={useHighThinking} onChange={e => setUseHighThinking(e.target.checked)} className="rounded border-neutral-700 bg-neutral-800 text-indigo-500 focus:ring-offset-0 focus:ring-0" />
@@ -237,22 +294,31 @@ export default function MentorChat({ activeTopic }: { activeTopic: string | null
                  Pesquisa web
                </label>
             </div>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Qual o problema?"
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                className="w-full bg-neutral-800 border border-neutral-700 rounded-xl pl-4 pr-12 py-3 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-indigo-500"
-              />
-              <button
-                onClick={sendMessage}
-                disabled={loading || !input.trim()}
-                className="absolute right-2 top-2 p-1.5 bg-indigo-500 hover:bg-indigo-600 disabled:bg-neutral-700 text-white rounded-lg transition-colors"
-              >
-                <Send className="w-4 h-4" />
-              </button>
+            <div className="relative flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Qual o problema?"
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && sendMessage()}
+                  className={cn("w-full border rounded-xl pl-4 pr-20 py-3 text-sm focus:outline-none transition-colors", isNightMode ? "bg-black border-neutral-900 text-neutral-500 placeholder-neutral-700 focus:border-neutral-800" : "bg-neutral-800 border-neutral-700 text-white placeholder-neutral-500 focus:border-indigo-500")}
+                />
+                <button
+                  onClick={toggleDictation}
+                  className={cn("absolute right-10 top-2 p-1.5 rounded-lg transition-colors", isDictating ? (isNightMode ? "bg-red-900/10 text-red-800" : "bg-red-500/20 text-red-500") : (isNightMode ? "text-neutral-700 hover:text-neutral-500" : "text-neutral-400 hover:text-white hover:bg-neutral-700"))}
+                  title="Falar"
+                >
+                  {isDictating ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </button>
+                <button
+                  onClick={sendMessage}
+                  disabled={loading || !input.trim()}
+                  className={cn("absolute right-2 top-2 p-1.5 text-white rounded-lg transition-colors", isNightMode ? "bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-950 text-neutral-500" : "bg-indigo-500 hover:bg-indigo-600 disabled:bg-neutral-700")}
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
         </>
