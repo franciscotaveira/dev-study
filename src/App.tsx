@@ -8,11 +8,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { curriculum as defaultCurriculum } from './data/curriculum';
-import { ChevronRight, ChevronDown, CheckCircle2, Circle, Target, Play, Pause, RotateCcw, Moon, Sun, Zap, Loader2, BrainCircuit, Trophy, Wind, X, Flame, Settings, HelpCircle, Users, Copy, Clock, Award, ClipboardList } from 'lucide-react';
+import { ChevronRight, ChevronDown, CheckCircle2, Circle, Target, Play, Pause, RotateCcw, Moon, Sun, Zap, Loader2, BrainCircuit, Trophy, Wind, X, Flame, Settings, HelpCircle, Users, Copy, Clock, Award, ClipboardList, Plug, Briefcase, Palette } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import MentorChat from './components/MentorChat';
 import CodeSandbox from './components/CodeSandbox';
+import { StudyStatsDashboard } from './components/StudyStatsDashboard';
+import Logbook from './components/Logbook';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -30,8 +32,41 @@ function useStickyState<T>(defaultValue: T, key: string): [T, React.Dispatch<Rea
   return [value, setValue];
 }
 
+const getLevelInfo = (completedCount: number) => {
+  const xpPerMission = 100;
+  const totalXP = completedCount * xpPerMission;
+  let level = 1;
+  let title = "Recruta Aleatório";
+  let nextLevelXP = 300;
+  let currentLevelXP = 0;
+
+  if (completedCount >= 15) {
+    level = 5; title = "Mestre Jedi"; currentLevelXP = 1500; nextLevelXP = 1500;
+  } else if (completedCount >= 10) {
+    level = 4; title = "Ninja Fullstack"; currentLevelXP = 1000; nextLevelXP = 1500;
+  } else if (completedCount >= 6) {
+    level = 3; title = "Explorador de Código"; currentLevelXP = 600; nextLevelXP = 1000;
+  } else if (completedCount >= 3) {
+    level = 2; title = "Padawan do Front"; currentLevelXP = 300; nextLevelXP = 600;
+  } else {
+    level = 1; title = "Novato Curioso"; currentLevelXP = 0; nextLevelXP = 300;
+  }
+
+  const progress = totalXP >= nextLevelXP ? 100 : ((totalXP - currentLevelXP) / (nextLevelXP - currentLevelXP)) * 100;
+
+  return { level, title, totalXP, progress, nextLevelXP, currentLevelXP };
+};
+
+interface MicroTask {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
 export default function App() {
   const [completedItems, setCompletedItems] = useStickyState<string[]>([], 'senai-completed-items');
+  const [completionTimes, setCompletionTimes] = useStickyState<Record<string, string>>({}, 'senai-completion-times');
+  const [badges, setBadges] = useStickyState<string[]>([], 'senai-badges');
   const [activeItem, setActiveItem] = useStickyState<string | null>(null, 'senai-active-item');
   const [expandedModules, setExpandedModules] = useState<number[]>([0, 1]);
   const [isNightMode, setIsNightMode] = useState(false);
@@ -42,6 +77,8 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isToolsModalOpen, setIsToolsModalOpen] = useState(false);
+  const [isAutoFormatEnabled, setIsAutoFormatEnabled] = useStickyState(false, 'senai-auto-format');
   const [activeRightTab, setActiveRightTab] = useState<'chat' | 'sandbox'>('chat');
   const [hasCopiedLink, setHasCopiedLink] = useState(false);
   const [curriculumJson, setCurriculumJson] = useState("");
@@ -58,6 +95,8 @@ export default function App() {
   const [isReviewLoading, setIsReviewLoading] = useState(false);
   const [reviewStatus, setReviewStatus] = useStickyState<Record<string, string>>({}, 'senai-review-status');
   const [microChallenges, setMicroChallenges] = useStickyState<Record<string, string>>({}, 'senai-micro-challenges');
+  const [microTasks, setMicroTasks] = useStickyState<Record<string, MicroTask[]>>({}, 'senai-micro-tasks-v2');
+  const [newMicroTaskText, setNewMicroTaskText] = useState("");
   
   const [evaluatingItem, setEvaluatingItem] = useState<string | null>(null);
   const [evaluationExplanation, setEvaluationExplanation] = useState<string>('');
@@ -67,6 +106,9 @@ export default function App() {
 
   const [dailyFocusDataRaw, setDailyFocusDataRaw] = useStickyState<Record<string, number>>({}, 'senai-daily-focus-raw');
   const [missionTime, setMissionTime] = useStickyState<Record<string, number>>({}, 'senai-mission-time-data');
+  const [shiftFocus, setShiftFocus] = useStickyState<Record<string, number>>({ manha: 0, tarde: 0, madrugada: 0 }, 'senai-shift-focus-data');
+  const [combatErrors, setCombatErrors] = useStickyState<Record<string, number>>({ 'Tags Órfãs': 0, 'Sintaxe JS': 0, 'Tipografia CSS': 0, 'Indentação': 0 }, 'senai-combat-errors-data');
+  const [mobileActiveTab, setMobileActiveTab] = useState<'foco' | 'trilha'>('foco');
 
   const [timeLeft, setTimeLeft] = useStickyState<number>(5 * 60, 'senai-time-left');
   const [isActive, setIsActive] = useStickyState<boolean>(false, 'senai-is-active');
@@ -74,6 +116,7 @@ export default function App() {
   const [activeSessionSeconds, setActiveSessionSeconds] = useState(0);
   const [showErgonomicsTip, setShowErgonomicsTip] = useState(false);
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
+  const [toastMessage, setToastMessage] = useState<{title: string, msg: string, icon?: React.ReactNode} | null>(null);
 
   const ERGONOMICS_TIPS = [
     { title: "Postura de Sobrevivência", text: "Endireite as costas, relaxe os ombros e apoie os pés no chão." },
@@ -120,6 +163,19 @@ export default function App() {
       setDailyFocusDataRaw(prev => ({
         ...prev,
         [today]: (prev[today] || 0) + 5
+      }));
+
+      const currentHour = new Date().getHours();
+      let shiftKey: 'manha' | 'tarde' | 'madrugada' = 'madrugada';
+      if (currentHour >= 6 && currentHour < 12) {
+        shiftKey = 'manha';
+      } else if (currentHour >= 12 && currentHour < 18) {
+        shiftKey = 'tarde';
+      }
+
+      setShiftFocus(prev => ({
+        ...prev,
+        [shiftKey]: (prev[shiftKey] || 0) + 5
       }));
 
       if (activeItem) {
@@ -170,9 +226,80 @@ export default function App() {
     }
   };
 
+  const handleAddMicroTask = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && newMicroTaskText.trim() !== '') {
+      if (!activeItem) return;
+      const newTask = { id: crypto.randomUUID(), text: newMicroTaskText.trim(), completed: false };
+      setMicroTasks(prev => ({
+        ...prev,
+        [activeItem]: [...(prev[activeItem] || []), newTask]
+      }));
+      setNewMicroTaskText("");
+    }
+  };
+
+  const toggleMicroTask = (taskId: string) => {
+    if (!activeItem) return;
+    setMicroTasks(prev => {
+      const currentTasks = prev[activeItem] || [];
+      const updatedTasks = currentTasks.map(t => 
+        t.id === taskId ? { ...t, completed: !t.completed } : t
+      );
+      
+      const justCompletedAll = 
+        updatedTasks.length > 0 && 
+        updatedTasks.every(t => t.completed) && 
+        !currentTasks.every(t => t.completed);
+
+      if (justCompletedAll) {
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.8 },
+          colors: ['#818cf8', '#c084fc', '#4ade80']
+        });
+      }
+
+      return {
+        ...prev,
+        [activeItem]: updatedTasks
+      };
+    });
+  };
+
   const confirmEvaluation = () => {
     if (evaluatingItem) {
+      const now = new Date();
+      const hour = now.getHours();
+      
+      const currentLevelInfo = getLevelInfo(completedItems.length);
+      const nextLevelInfo = getLevelInfo(completedItems.length + 1);
+      
       setCompletedItems(prev => [...prev, evaluatingItem]);
+      setCompletionTimes(prev => ({...prev, [evaluatingItem]: now.toISOString()}));
+      
+      const newBadges: string[] = [];
+      if ((hour >= 0 && hour <= 5) && !badges.includes('⭐ Notívago Codificador')) {
+         newBadges.push('⭐ Notívago Codificador');
+      }
+      
+      const htmlCount = completedItems.filter(i => i.toLowerCase().includes('html')).length + 1;
+      if (htmlCount >= 4 && !badges.includes('👑 Mestre HTML')) {
+         newBadges.push('👑 Mestre HTML');
+      }
+
+      if (newBadges.length > 0) {
+         setBadges(prev => [...prev, ...newBadges]);
+      }
+      
+      if (nextLevelInfo.level > currentLevelInfo.level) {
+        setToastMessage({ title: 'Subiu de Nível! 🎉', msg: `Você agora é: ${nextLevelInfo.title}`, icon: <Award className="w-5 h-5 text-emerald-400" /> });
+        setTimeout(() => setToastMessage(null), 5000);
+      } else if (newBadges.length > 0) {
+        setToastMessage({ title: 'Nova Medalha! 🏅', msg: `Desbloqueada: ${newBadges[0]}`, icon: <Trophy className="w-5 h-5 text-amber-400" /> });
+        setTimeout(() => setToastMessage(null), 5000);
+      }
+
       confetti({
         particleCount: 100,
         spread: 70,
@@ -328,9 +455,37 @@ export default function App() {
     return result;
   }, [dailyFocusDataRaw]);
 
+  const levelInfo = getLevelInfo(completedItems.length);
+
   return (
-    <div className={cn("min-h-screen font-sans transition-colors duration-500", isNightMode ? "bg-black text-neutral-600" : "bg-neutral-950 text-neutral-300 selection:bg-indigo-500/30")}>
+    <div className={cn("min-h-screen font-sans transition-colors duration-500 relative", isNightMode ? "bg-black text-neutral-600" : "bg-neutral-950 text-neutral-300 selection:bg-indigo-500/30")}>
       
+      {/* Top XP Bar */}
+      <div className={cn(
+        "w-full px-4 sm:px-6 py-3 flex items-center justify-between border-b transition-colors z-40 sticky top-0 backdrop-blur-md",
+        isNightMode ? "bg-black/80 border-neutral-900" : "bg-neutral-950/80 border-neutral-900"
+      )}>
+        <div className="flex flex-col flex-1 max-w-7xl mx-auto space-y-2">
+          <div className="flex items-center justify-between text-xs sm:text-sm font-medium">
+            <div className="flex items-center gap-2">
+              <Award className="w-4 h-4 text-emerald-400" />
+              <span className="text-white">Nível {levelInfo.level} — <span className="text-emerald-400 font-bold tracking-wide">{levelInfo.title}</span></span>
+            </div>
+            <span className="text-neutral-400 font-mono text-[10px] sm:text-xs">
+              {levelInfo.totalXP} <span className="text-neutral-600">/</span> {levelInfo.nextLevelXP} XP
+            </span>
+          </div>
+          <div className="h-1.5 sm:h-2 w-full bg-neutral-900 rounded-full overflow-hidden border border-neutral-800">
+            <div 
+              className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full transition-all duration-1000 ease-out relative" 
+              style={{ width: `${Math.max(1, levelInfo.progress)}%` }}
+            >
+              <div className="absolute top-0 right-0 bottom-0 w-8 bg-gradient-to-l from-white/20 to-transparent" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Peer Evaluation Modal */}
       <AnimatePresence>
         {evaluatingItem && (
@@ -390,6 +545,94 @@ export default function App() {
                   className="px-6 py-2 rounded-xl text-sm font-medium bg-indigo-500 hover:bg-indigo-600 disabled:bg-neutral-800 disabled:text-neutral-500 text-white transition-colors"
                 >
                   Validar Missão
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Tools / Extensions Modal */}
+      <AnimatePresence>
+        {isToolsModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsToolsModalOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className={cn("relative w-full max-w-2xl p-6 md:p-8 rounded-2xl border shadow-2xl overflow-y-auto max-h-[85vh] flex flex-col", isNightMode ? "bg-neutral-900 border-neutral-800" : "bg-neutral-950 border-neutral-800")}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className={cn("p-2 rounded-lg border", isNightMode ? "bg-neutral-800 border-neutral-700" : "bg-purple-500/10 border-purple-500/20")}>
+                    <Briefcase className={cn("w-5 h-5", isNightMode ? "text-neutral-400" : "text-purple-400")} />
+                  </div>
+                  <h2 className="text-xl md:text-2xl font-bold text-white mb-0">Kit de Ferramentas Visual</h2>
+                </div>
+                <button onClick={() => setIsToolsModalOpen(false)} className="text-neutral-500 hover:text-neutral-300 transition-colors">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6 text-neutral-300 text-sm leading-relaxed">
+                
+                {/* VS Code Extensions for TDAH */}
+                <div className="space-y-3">
+                  <h3 className="text-base font-bold text-emerald-400 flex items-center gap-2">
+                    <Palette className="w-4 h-4" /> Temas de Acessibilidade (Cores)
+                  </h3>
+                  <div className="bg-neutral-900 p-4 rounded-xl border border-neutral-800/80">
+                    <p className="mb-2">Para quem estuda de madrugada ou tem sensibilidade visual, temas "Soft" com baixo contraste ajudam muito a evitar a fadiga ocular.</p>
+                    <ul className="list-disc pl-5 space-y-1 text-neutral-400">
+                      <li><strong className="text-indigo-300">Dracula Official / Dracula Soft:</strong> Um dos melhores. As cores pastéis no fundo escuro mantêm a atenção sem "gritar".</li>
+                      <li><strong className="text-indigo-300">Nord:</strong> Cores frias inspiradas no ártico. Excelente para acalmar a mente durante a leitura de código extenso.</li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Organization & Setup */}
+                <div className="space-y-3">
+                  <h3 className="text-base font-bold text-amber-400 flex items-center gap-2">
+                    <Plug className="w-4 h-4" /> Extensões Recomendadas (Obrigatórias)
+                  </h3>
+                  <div className="bg-neutral-900 p-4 rounded-xl border border-neutral-800/80 space-y-3">
+                    <div>
+                      <strong className="text-amber-300 block mb-0.5">Prettier - Code formatter</strong>
+                      <p className="text-neutral-400 text-xs">Mantém o código organizado independentemente do seu nível de bagunça. Um atalho formata tudo sozinho.</p>
+                    </div>
+                    <div>
+                      <strong className="text-amber-300 block mb-0.5">Live Server</strong>
+                      <p className="text-neutral-400 text-xs">Cria um servidor local rápido para você ver as alterações no HTML imediatamente ao salvar o arquivo.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* AI Assistants */}
+                <div className="space-y-3">
+                  <h3 className="text-base font-bold text-purple-400 flex items-center gap-2">
+                    <BrainCircuit className="w-4 h-4" /> O que é "Antigravity"?
+                  </h3>
+                  <div className="bg-purple-900/10 p-4 rounded-xl border border-purple-500/20">
+                    <p className="mb-2"><strong>Antigravity</strong> (também referido às vezes no escopo do Google Cloud) é o motor de agente (AI Agent) que impulsiona o Google AI Studio.</p>
+                    <p className="text-neutral-400">Ferramentas de IA como o Antigravity/Gemini funcionam como co-pilotos. Elas podem ser chamadas no VS Code (através de extensões oficiais ou APIs) para explicar código quebrado instantaneamente. Mas lembre-se: <strong className="text-rose-400">A IA sugere, você testa. O código confirma.</strong></p>
+                  </div>
+                </div>
+
+              </div>
+              
+              <div className="mt-8 pt-4 border-t border-neutral-800 flex justify-end">
+                <button
+                  onClick={() => setIsToolsModalOpen(false)}
+                  className="px-6 py-2.5 bg-neutral-800 hover:bg-neutral-700 text-white font-medium rounded-lg transition-colors"
+                >
+                  Entendido
                 </button>
               </div>
             </motion.div>
@@ -623,7 +866,7 @@ export default function App() {
             initial={{ opacity: 0, x: 50, scale: 0.95 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 20, scale: 0.95 }}
-            className="fixed top-6 right-6 z-50 w-80 bg-neutral-900 border border-neutral-800 rounded-xl p-5 shadow-2xl shadow-black/50"
+            className="fixed top-20 right-6 z-50 w-80 bg-neutral-900 border border-neutral-800 rounded-xl p-5 shadow-2xl shadow-black/50"
           >
             <div className="flex items-start justify-between mb-2 text-teal-400">
               <div className="flex items-center gap-2">
@@ -648,18 +891,48 @@ export default function App() {
       {isNightMode && (
         <button 
           onClick={() => setIsNightMode(false)}
-          className="absolute top-6 right-6 flex items-center gap-2 px-4 py-2 rounded-full border border-neutral-900 bg-neutral-950 text-neutral-500 justify-center hover:text-neutral-300 hover:bg-neutral-900 transition-colors text-sm z-50"
+          className="absolute top-20 right-6 flex items-center gap-2 px-4 py-2 rounded-full border border-neutral-900 bg-neutral-950 text-neutral-500 justify-center hover:text-neutral-300 hover:bg-neutral-900 transition-colors text-sm z-50"
         >
           <Sun className="w-4 h-4" /> Sair do Modo Madrugada
         </button>
       )}
 
+      {/* Mobile Context Switcher - Visível apenas em telas menores < lg */}
+      <div className="lg:hidden px-3 pt-4 flex gap-2 max-w-7xl mx-auto">
+        <button
+          onClick={() => setMobileActiveTab('foco')}
+          className={cn(
+            "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all flex items-center justify-center gap-1.5",
+            mobileActiveTab === 'foco'
+              ? "bg-indigo-500 text-white border-indigo-400 shadow-md shadow-indigo-500/10 font-bold"
+              : "bg-neutral-900/40 border-neutral-800/80 text-neutral-400 hover:text-neutral-200"
+          )}
+        >
+          <Zap className="w-3.5 h-3.5 fill-current text-indigo-400" /> Área de Foco & Lab
+        </button>
+        <button
+          onClick={() => setMobileActiveTab('trilha')}
+          className={cn(
+            "flex-1 py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all flex items-center justify-center gap-1.5",
+            mobileActiveTab === 'trilha'
+              ? "bg-indigo-500 text-white border-indigo-400 shadow-md shadow-indigo-500/10 font-bold"
+              : "bg-neutral-900/40 border-neutral-800/80 text-neutral-400 hover:text-neutral-200"
+          )}
+        >
+          <ClipboardList className="w-3.5 h-3.5 text-neutral-400" /> Minha Trilha & Stats
+        </button>
+      </div>
+
       <div className={cn(
-        "mx-auto transition-all duration-500 max-w-5xl px-6 py-12 grid grid-cols-1 lg:grid-cols-12 gap-12"
+        "mx-auto transition-all duration-500 max-w-7xl px-3 sm:px-6 py-4 sm:py-8 grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-8"
       )}>
         
         {/* Left Column - Tracker */}
-        <div className={cn("lg:col-span-7 space-y-8 animate-in fade-in slide-in-from-left-4 duration-500", isNightMode && "opacity-30 hover:opacity-100 transition-opacity duration-500 contrast-75 saturate-0")}>
+        <div className={cn(
+          "lg:col-span-7 space-y-8 animate-in fade-in slide-in-from-left-4 duration-500", 
+          isNightMode && "opacity-30 hover:opacity-100 transition-opacity duration-500 contrast-75 saturate-0",
+          mobileActiveTab === 'trilha' ? 'block' : 'hidden lg:block'
+        )}>
           <div>
               <div className="flex items-start justify-between mb-2">
                 <h1 className="text-3xl font-medium tracking-tight text-white">Trilha de Estudos</h1>
@@ -677,6 +950,13 @@ export default function App() {
                     title="Como usar o sistema"
                   >
                     <HelpCircle className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setIsToolsModalOpen(true)}
+                    className="p-3 rounded-full border border-neutral-800 bg-neutral-900/50 text-neutral-400 hover:text-indigo-400 hover:border-indigo-500/30 transition-colors"
+                    title="Kit de Ferramentas (Extensões úteis)"
+                  >
+                    <Briefcase className="w-5 h-5" />
                   </button>
                   <button
                     onClick={openSettings}
@@ -769,6 +1049,32 @@ export default function App() {
                 </div>
               )}
 
+              {/* Badges Gallery */}
+              {badges && badges.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-xs font-medium text-neutral-500 mb-2 uppercase tracking-widest flex items-center gap-2">
+                    <Award className="w-4 h-4 text-purple-500" /> Medalhas Especiais
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    <AnimatePresence>
+                      {badges.map((badge, idx) => (
+                        <motion.div
+                          key={`${badge}-${idx}`}
+                          initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold shadow-lg shadow-purple-500/10", isNightMode ? "bg-purple-900/10 border-purple-500/20 text-purple-400" : "bg-purple-500/10 border-purple-500/30 text-purple-300")}
+                        >
+                          {badge}
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              )}
+
+              {/* Advanced Study Dashboard */}
+              <StudyStatsDashboard isNightMode={isNightMode} dailyFocusData={dailyFocusDataRaw} completedItems={completedItems} shiftFocus={shiftFocus} combatErrors={combatErrors} />
+
               {/* Progress Chart and Streak */}
               <div className={cn("rounded-xl p-5 mb-8 relative overflow-hidden transition-colors duration-500", isNightMode ? "bg-black border border-neutral-900/50" : "bg-neutral-900/40 border border-neutral-800/50")}>
                 <div className="flex items-center justify-between mb-6">
@@ -836,7 +1142,7 @@ export default function App() {
                           animate={isCompleted ? { backgroundColor: "rgba(99, 102, 241, 0.03)" } : { backgroundColor: "rgba(0, 0, 0, 0)" }}
                           transition={{ duration: 0.5 }}
                           className={cn(
-                            "px-5 py-3 flex items-start gap-4 transition-colors group relative overflow-hidden",
+                            "px-3 sm:px-5 py-2.5 sm:py-3 flex items-start gap-3 sm:gap-4 transition-colors group relative overflow-hidden",
                             isActiveItem && !isCompleted ? "bg-indigo-500/5" : "hover:bg-neutral-800/20"
                           )}
                         >
@@ -903,7 +1209,7 @@ export default function App() {
                               <button
                                 onClick={() => setActiveItem(item)}
                                 className={cn(
-                                  "shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-all opacity-0 group-hover:opacity-100 focus:opacity-100",
+                                  "shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100",
                                   isActiveItem 
                                     ? "bg-indigo-500/20 text-indigo-300 opacity-100" 
                                     : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white"
@@ -924,7 +1230,10 @@ export default function App() {
         </div>
 
         {/* Right Column - Active Module & Timer */}
-        <div className={cn(isNightMode ? "lg:col-span-5 animate-in zoom-in-95 fade-in duration-700" : "lg:col-span-5")}>
+        <div className={cn(
+          isNightMode ? "lg:col-span-5 animate-in zoom-in-95 fade-in duration-700" : "lg:col-span-5",
+          mobileActiveTab === 'foco' ? 'block' : 'hidden lg:block'
+        )}>
           <div className={cn("sticky top-12 space-y-6", isNightMode && "space-y-8")}>
             
             {/* Active Task Card */}
@@ -985,12 +1294,57 @@ export default function App() {
                       </div>
                       
                       <div className="space-y-3">
-                        <div className={cn("text-sm font-medium", isNightMode ? "text-neutral-700" : "text-neutral-400")}>Micro-desafio:</div>
-                        <textarea 
-                          placeholder="Qual o próximo checkpoint pequeno?"
-                          value={microChallenges[activeItem] || ''}
-                          onChange={(e) => setMicroChallenges(prev => ({ ...prev, [activeItem]: e.target.value }))}
-                          className={cn("w-full rounded-lg px-4 py-3 text-sm resize-none h-24 focus:outline-none transition-colors", isNightMode ? "bg-black border border-neutral-900 text-neutral-400 placeholder:text-neutral-800 focus:border-neutral-700" : "bg-neutral-900/50 border border-neutral-800 text-neutral-200 placeholder:text-neutral-600 focus:border-indigo-500/50")}
+                        <div className="flex items-center justify-between">
+                          <div className={cn("text-sm font-medium", isNightMode ? "text-neutral-700" : "text-neutral-400")}>Micro-desafios (Checkpoints):</div>
+                          {microTasks[activeItem]?.length > 0 && (
+                            <span className={cn("text-xs font-mono", isNightMode ? "text-neutral-600" : "text-neutral-500")}>
+                              {microTasks[activeItem].filter(t => t.completed).length}/{microTasks[activeItem].length}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {microTasks[activeItem]?.length > 0 && (
+                          <div className="h-1.5 w-full bg-neutral-800 rounded-full overflow-hidden border border-neutral-700/50">
+                            <div 
+                              className="h-full bg-indigo-500 transition-all duration-500"
+                              style={{ width: `${(microTasks[activeItem].filter(t => t.completed).length / microTasks[activeItem].length) * 100}%` }}
+                            />
+                          </div>
+                        )}
+
+                        <div className="space-y-2 mt-2 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+                          {microTasks[activeItem]?.map(task => (
+                            <div key={task.id} className="flex items-start gap-2 group">
+                              <button 
+                                onClick={() => toggleMicroTask(task.id)}
+                                className={cn(
+                                  "mt-0.5 shrink-0 w-4 h-4 rounded-full border flex items-center justify-center transition-colors",
+                                  task.completed 
+                                    ? "bg-indigo-500 border-indigo-500 text-white" 
+                                    : (isNightMode ? "border-neutral-700" : "border-neutral-600")
+                                )}
+                              >
+                                {task.completed && <CheckCircle2 className="w-3 h-3" />}
+                              </button>
+                              <span className={cn(
+                                "text-sm",
+                                task.completed
+                                  ? (isNightMode ? "text-neutral-700 line-through" : "text-neutral-500 line-through")
+                                  : (isNightMode ? "text-neutral-400" : "text-neutral-300")
+                              )}>
+                                {task.text}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <input 
+                          type="text"
+                          placeholder="Adicionar pequeno passo... (Enter)"
+                          value={newMicroTaskText}
+                          onChange={(e) => setNewMicroTaskText(e.target.value)}
+                          onKeyDown={handleAddMicroTask}
+                          className={cn("w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none transition-colors mt-2 border", isNightMode ? "bg-black border-neutral-900 text-neutral-400 placeholder:text-neutral-800 focus:border-neutral-700" : "bg-neutral-900/50 border-neutral-800 text-neutral-200 placeholder:text-neutral-600 focus:border-indigo-500/50")}
                         />
                       </div>
                     </>
@@ -1172,15 +1526,31 @@ export default function App() {
             </div>
 
             {activeRightTab === 'chat' ? (
-              <MentorChat activeTopic={activeItem} isNightMode={isNightMode} />
+              <div className="flex-1 flex flex-col h-full min-h-0 overflow-y-auto px-1 py-4 space-y-4 custom-scrollbar">
+                <MentorChat 
+                   activeTopic={activeItem} 
+                   isNightMode={isNightMode} 
+                   isAutoFormatEnabled={isAutoFormatEnabled} 
+                   onToggleAutoFormat={() => setIsAutoFormatEnabled(!isAutoFormatEnabled)} 
+                   completedItems={completedItems}
+                />
+                <Logbook isNightMode={isNightMode} />
+              </div>
             ) : (
               <CodeSandbox
                 isNightMode={isNightMode}
+                isAutoFormatEnabled={isAutoFormatEnabled}
                 onSendToMentor={(codeMessage) => {
                   setActiveRightTab('chat');
                   setTimeout(() => {
                     window.dispatchEvent(new CustomEvent('send-to-mentor', { detail: codeMessage }));
                   }, 200);
+                }}
+                onSolvedBug={(category) => {
+                  setCombatErrors(prev => ({
+                    ...prev,
+                    [category]: (prev[category] || 0) + 1
+                  }));
                 }}
               />
             )}
@@ -1189,6 +1559,32 @@ export default function App() {
         </div>
         
       </div>
+
+      {/* Floating Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-6 right-6 lg:bottom-12 lg:right-12 z-50 rounded-2xl bg-neutral-900 border border-neutral-800 shadow-2xl p-4 flex items-center gap-4 max-w-sm"
+          >
+            <div className="w-12 h-12 rounded-full bg-neutral-800 flex items-center justify-center shrink-0">
+              {toastMessage.icon || <Award className="w-6 h-6 text-indigo-400" />}
+            </div>
+            <div className="flex-1">
+              <h4 className="font-bold text-white text-sm">{toastMessage.title}</h4>
+              <p className="text-xs text-neutral-400 mt-0.5 leading-snug">{toastMessage.msg}</p>
+            </div>
+            <button 
+              onClick={() => setToastMessage(null)}
+              className="p-1.5 hover:bg-neutral-800 rounded-lg text-neutral-500 hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

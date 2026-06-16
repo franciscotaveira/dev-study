@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Square, Mic, MicOff, Send, Lightbulb, Search, Loader2 } from 'lucide-react';
+import { Play, Square, Mic, MicOff, Send, Lightbulb, Search, Loader2, Download } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -28,7 +30,7 @@ interface Message {
   parts: { text: string }[];
 }
 
-export default function MentorChat({ activeTopic, isNightMode }: { activeTopic: string | null, isNightMode?: boolean }) {
+export default function MentorChat({ activeTopic, isNightMode, isAutoFormatEnabled, onToggleAutoFormat, completedItems }: { activeTopic: string | null, isNightMode?: boolean, isAutoFormatEnabled?: boolean, onToggleAutoFormat?: () => void, completedItems?: string[] }) {
   const [messages, setMessages] = useState<Message[]>([
     { role: 'model', parts: [{ text: 'Manda! Onde você travou?' }] }
   ]);
@@ -37,6 +39,7 @@ export default function MentorChat({ activeTopic, isNightMode }: { activeTopic: 
   const [mode, setMode] = useState<'text' | 'voice'>('text');
   const [useHighThinking, setUseHighThinking] = useState(false);
   const [useSearch, setUseSearch] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Dictation state
   const [isDictating, setIsDictating] = useState(false);
@@ -52,6 +55,33 @@ export default function MentorChat({ activeTopic, isNightMode }: { activeTopic: 
   const nextStartTimeRef = useRef(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const exportChatToPdf = async () => {
+    if (!chatContainerRef.current) return;
+    setIsExporting(true);
+    try {
+      const canvas = await html2canvas(chatContainerRef.current, {
+        backgroundColor: isNightMode ? '#000000' : '#171717',
+        scale: 2,
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save('Resumo_Estudos_Mentor.pdf');
+    } catch (error) {
+      console.error("Failed to export PDF", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -252,10 +282,18 @@ export default function MentorChat({ activeTopic, isNightMode }: { activeTopic: 
   };
 
   return (
-    <div className={cn("flex flex-col h-[500px] rounded-2xl border backdrop-blur-sm overflow-hidden text-sm transition-colors duration-500", isNightMode ? "bg-black/20 border-neutral-900/50" : "bg-neutral-900/50 border-neutral-800")}>
+    <div className={cn("flex flex-col h-[400px] sm:h-[500px] rounded-2xl border backdrop-blur-sm overflow-hidden text-sm transition-colors duration-500", isNightMode ? "bg-black/20 border-neutral-900/50" : "bg-neutral-900/50 border-neutral-800")}>
       <div className={cn("p-4 border-b flex items-center justify-between transition-colors", isNightMode ? "border-neutral-900 bg-neutral-950 text-neutral-500" : "border-neutral-800 bg-neutral-900/80 text-neutral-200")}>
         <h3 className="font-semibold">Mentor IA</h3>
         <div className="flex items-center gap-2">
+           <button 
+             onClick={exportChatToPdf} 
+             disabled={isExporting || messages.length <= 1}
+             className={cn("p-1.5 rounded-md transition-colors", isExporting ? "opacity-50" : "text-neutral-500 hover:text-white")}
+             title="Baixar Resumo PDF"
+           >
+             {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+           </button>
            <button onClick={toggleVoiceMode} className={cn("p-1.5 rounded-md transition-colors", mode === 'voice' ? "bg-indigo-500/20 text-indigo-400" : "text-neutral-500 hover:text-white")}>
              <Mic className="w-4 h-4" />
            </button>
@@ -264,7 +302,7 @@ export default function MentorChat({ activeTopic, isNightMode }: { activeTopic: 
 
       {mode === 'text' ? (
         <>
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.map((m, i) => (
               <div key={i} className={cn("flex", m.role === 'user' ? "justify-end" : "justify-start")}>
                 <div className={cn("max-w-[85%] rounded-2xl px-4 py-2", m.role === 'user' ? "bg-indigo-600 text-white" : "bg-neutral-800 text-neutral-200")}>
@@ -289,14 +327,25 @@ export default function MentorChat({ activeTopic, isNightMode }: { activeTopic: 
             <div ref={messagesEndRef} />
           </div>
 
-          {activeTopic && (
-            <div className="px-4 py-2 bg-neutral-900/50 border-t border-neutral-800 flex flex-wrap gap-2">
+          <div className="px-4 py-2 bg-neutral-900/50 border-t border-neutral-800 flex flex-wrap gap-2">
+            {activeTopic && (
               <button onClick={explainTopic} className="text-xs px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-full transition-colors flex items-center gap-1.5">
                 <Lightbulb className="w-3.5 h-3.5 text-yellow-500" />
-                Explique o tópico atual rápido
+                Explique o tópico atual
               </button>
-            </div>
-          )}
+            )}
+            
+            <button 
+              onClick={() => {
+                const items = completedItems?.length ? completedItems.join(", ") : "nenhum";
+                sendMessage(`Analise meu progresso. Eu já concluí os seguintes tópicos/missões: ${items}. Baseado nisso e nos erros comuns que cometi, o que você sugere como próxima missão ou exercício foco para hoje de madrugada? Diga de forma direta seguindo seus princípios de redução de carga cognitiva.`)
+              }} 
+              className="text-xs px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-full transition-colors flex items-center gap-1.5"
+            >
+              <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+              Sugerir Próxima Missão
+            </button>
+          </div>
 
           <div className={cn("p-3 border-t", isNightMode ? "bg-black/40 border-neutral-900/50" : "bg-neutral-900/80 border-neutral-800")}>
             <div className="mb-2 flex items-center gap-3 px-2">
@@ -307,6 +356,10 @@ export default function MentorChat({ activeTopic, isNightMode }: { activeTopic: 
                <label className="flex items-center gap-1.5 text-xs text-neutral-500 cursor-pointer hover:text-neutral-300">
                  <input type="checkbox" checked={useSearch} onChange={e => setUseSearch(e.target.checked)} className="rounded border-neutral-700 bg-neutral-800 text-indigo-500 focus:ring-offset-0 focus:ring-0" />
                  Pesquisa web
+               </label>
+               <label title="O Mentor tentará organizar (lint/Prettier) automaticamente o seu código e indentação enquanto você digita no sandbox" className="flex items-center gap-1.5 text-xs text-neutral-500 cursor-pointer hover:text-neutral-300">
+                 <input type="checkbox" checked={isAutoFormatEnabled} onChange={onToggleAutoFormat} className="rounded border-neutral-700 bg-neutral-800 text-indigo-500 focus:ring-offset-0 focus:ring-0" />
+                 Mentor Linter
                </label>
             </div>
             <div className="relative flex items-center gap-2">
