@@ -1,6 +1,6 @@
 {
-  "name": "Mentor TDAH",
-  "description": "App de estudos para Trilha SENAI (Front-End e Back-End) com foco em produtividade para TDAH na madrugada.",
+  "name": "Mentor TDAH - Trilha Universal",
+  "description": "App de estudos para Trilha Prática de Programação Universal (Full-Stack) com foco em produtividade para TDAH na madrugada.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

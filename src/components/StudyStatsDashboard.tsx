@@ -3,6 +3,7 @@ import { BarChart, Bar, PieChart, Pie, Cell, XAxis, Tooltip, ResponsiveContainer
 import { Clock, Code2, Moon, Sun, Sunrise, BugOff, Calendar } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import Markdown from 'react-markdown';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -98,7 +99,8 @@ export function StudyStatsDashboard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           logbookEntries: logbookEntries.slice(0, 10), // Send last 10 entries to save tokens
-          focusData: dailyFocusData
+          focusData: dailyFocusData,
+          completedMissionsCount: completedItems.length
         })
       });
       const data = await res.json();
@@ -289,8 +291,14 @@ export function StudyStatsDashboard({
        </div>
 
        {weeklySummary && (
-          <div className={cn("mb-6 p-4 rounded-lg text-sm border", isNightMode ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-200" : "bg-indigo-50 border-indigo-100 text-indigo-800")}>
-             <p className="whitespace-pre-wrap">{weeklySummary}</p>
+          <div className={cn("mb-6 p-5 rounded-xl border flex flex-col gap-3", isNightMode ? "bg-indigo-900/10 border-indigo-500/20 text-indigo-100" : "bg-indigo-50 border-indigo-100 text-indigo-900")}>
+             <div className="flex items-center gap-2 mb-1">
+                <span className="text-xl">📊</span>
+                <h4 className="font-bold text-lg">Relatório Semanal de Foco</h4>
+             </div>
+             <div className={cn("prose prose-sm max-w-none opacity-90 overflow-hidden", isNightMode ? "prose-invert" : "")}>
+                <Markdown>{weeklySummary}</Markdown>
+             </div>
           </div>
        )}
 

@@ -8,7 +8,16 @@ interface LogEntry {
   id: string;
   timestamp: string;
   content: string;
+  mood?: string;
 }
+
+const MOODS = [
+  { emoji: '🚀', label: 'Inspirado' },
+  { emoji: '🤓', label: 'Focado' },
+  { emoji: '🙂', label: 'Tranquilo' },
+  { emoji: '😴', label: 'Cansado' },
+  { emoji: '🤯', label: 'Sobrecaregado' }
+];
 
 interface LogbookProps {
   isNightMode: boolean;
@@ -24,6 +33,7 @@ export default function Logbook({ isNightMode }: LogbookProps) {
     }
   });
   const [newEntry, setNewEntry] = useState('');
+  const [selectedMood, setSelectedMood] = useState('🤓');
   const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
@@ -37,7 +47,8 @@ export default function Logbook({ isNightMode }: LogbookProps) {
     const entry: LogEntry = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
-      content: newEntry.trim()
+      content: newEntry.trim(),
+      mood: selectedMood
     };
 
     setEntries(prev => [entry, ...prev]);
@@ -82,6 +93,26 @@ export default function Logbook({ isNightMode }: LogbookProps) {
           >
             <div className={`p-4 border-t ${isNightMode ? 'border-neutral-800' : 'border-neutral-200'}`}>
               <form onSubmit={handleAddEntry} className="mb-6">
+                <div className="flex items-center gap-2 mb-3 overflow-x-auto custom-scrollbar pb-1">
+                  <span className={`text-xs font-medium mr-2 ${isNightMode ? 'text-neutral-400' : 'text-neutral-500'}`}>
+                    Como você está se sentindo?
+                  </span>
+                  {MOODS.map(m => (
+                    <button
+                      key={m.emoji}
+                      type="button"
+                      onClick={() => setSelectedMood(m.emoji)}
+                      title={m.label}
+                      className={`text-lg p-1.5 rounded-full transition-all ${
+                        selectedMood === m.emoji 
+                          ? (isNightMode ? 'bg-neutral-800 ring-2 ring-indigo-500/50' : 'bg-neutral-200 ring-2 ring-indigo-500/50') 
+                          : 'opacity-60 hover:opacity-100 hover:scale-110'
+                      }`}
+                    >
+                      {m.emoji}
+                    </button>
+                  ))}
+                </div>
                 <div className="relative">
                   <textarea
                     value={newEntry}
@@ -128,11 +159,16 @@ export default function Logbook({ isNightMode }: LogbookProps) {
                         isNightMode ? 'bg-neutral-950 text-neutral-300' : 'bg-neutral-50 text-neutral-700'
                       }`}
                     >
-                      <div className={`flex items-center gap-1.5 mb-2 text-[10px] uppercase tracking-wider font-semibold ${
+                      <div className={`flex items-center gap-2 mb-2 text-[10px] uppercase tracking-wider font-semibold ${
                         isNightMode ? 'text-neutral-500' : 'text-neutral-400'
                       }`}>
-                        <Calendar className="w-3 h-3" />
-                        {format(new Date(entry.timestamp), "dd 'de' MMM 'às' HH:mm", { locale: ptBR })}
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="w-3 h-3" />
+                          {format(new Date(entry.timestamp), "dd 'de' MMM 'às' HH:mm", { locale: ptBR })}
+                        </div>
+                        {entry.mood && (
+                          <span className="text-sm ml-auto" title="Humor do momento">{entry.mood}</span>
+                        )}
                       </div>
                       <p className="whitespace-pre-wrap pr-8">{entry.content}</p>
                       <button

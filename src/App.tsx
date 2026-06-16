@@ -7,8 +7,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { curriculum as defaultCurriculum } from './data/curriculum';
-import { ChevronRight, ChevronDown, CheckCircle2, Circle, Target, Play, Pause, RotateCcw, Moon, Sun, Zap, Loader2, BrainCircuit, Trophy, Wind, X, Flame, Settings, HelpCircle, Users, Copy, Clock, Award, ClipboardList, Plug, Briefcase, Palette } from 'lucide-react';
+import { curriculums, defaultCurriculumId, Module } from './data/curriculum';
+import { ChevronRight, ChevronDown, CheckCircle2, Circle, Target, Play, Pause, RotateCcw, Moon, Sun, Zap, Loader2, BrainCircuit, Trophy, Wind, X, Flame, Settings, HelpCircle, Users, Copy, Clock, Award, ClipboardList, Plug, Briefcase, Palette, Maximize, Minimize, Droplets } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import MentorChat from './components/MentorChat';
@@ -71,8 +71,10 @@ export default function App() {
   const [expandedModules, setExpandedModules] = useState<number[]>([0, 1]);
   const [isNightMode, setIsNightMode] = useState(false);
   
-  const [customCurriculum, setCustomCurriculum] = useStickyState<typeof defaultCurriculum | null>(null, 'senai-custom-curriculum');
-  const curriculum = customCurriculum || defaultCurriculum;
+  const [customCurriculum, setCustomCurriculum] = useStickyState<Module[] | null>(null, 'senai-custom-curriculum');
+  const [selectedCurriculumId, setSelectedCurriculumId] = useStickyState<string>(defaultCurriculumId, 'senai-selected-curriculum-id');
+  const baseCurriculum = curriculums[selectedCurriculumId]?.modules || curriculums[defaultCurriculumId].modules;
+  const curriculum = customCurriculum || baseCurriculum;
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -109,8 +111,10 @@ export default function App() {
   const [shiftFocus, setShiftFocus] = useStickyState<Record<string, number>>({ manha: 0, tarde: 0, madrugada: 0 }, 'senai-shift-focus-data');
   const [combatErrors, setCombatErrors] = useStickyState<Record<string, number>>({ 'Tags Órfãs': 0, 'Sintaxe JS': 0, 'Tipografia CSS': 0, 'Indentação': 0 }, 'senai-combat-errors-data');
   const [mobileActiveTab, setMobileActiveTab] = useState<'foco' | 'trilha'>('foco');
+  const [isImmersiveMode, setIsImmersiveMode] = useState(false);
 
-  const [timeLeft, setTimeLeft] = useStickyState<number>(5 * 60, 'senai-time-left');
+  const [timeLeft, setTimeLeft] = useStickyState<number>(25 * 60, 'senai-time-left');
+  const [timerDurationMinutes, setTimerDurationMinutes] = useStickyState<number>(25, 'senai-timer-duration');
   const [isActive, setIsActive] = useStickyState<boolean>(false, 'senai-is-active');
   
   const [activeSessionSeconds, setActiveSessionSeconds] = useState(0);
@@ -208,6 +212,17 @@ export default function App() {
             setCurrentTipIndex(i => (i + 1) % ERGONOMICS_TIPS.length);
             setShowErgonomicsTip(true);
           }
+
+          // Trigger hydration reminder every 60 minutes (3600 seconds)
+          if (newSeconds % 3600 === 0 && newSeconds > 0) {
+            setToastMessage({
+              title: "Hora de se Hidratar! 💧",
+              msg: "Você já focou por 60 minutos. Beba um pouco de água para manter a cognição afiada.",
+              icon: <Droplets className="w-5 h-5 text-cyan-400" />
+            });
+            setTimeout(() => setToastMessage(null), 8000);
+          }
+
           return newSeconds;
         });
       }, 1000);
@@ -326,7 +341,13 @@ export default function App() {
 
   const resetTimer = () => {
     setIsActive(false);
-    setTimeLeft(5 * 60);
+    setTimeLeft(timerDurationMinutes * 60);
+  };
+
+  const handleTimerDurationChange = (minutes: number) => {
+    setTimerDurationMinutes(minutes);
+    setTimeLeft(minutes * 60);
+    setIsActive(false);
   };
 
   const copyInviteLink = () => {
@@ -471,9 +492,18 @@ export default function App() {
               <Award className="w-4 h-4 text-emerald-400" />
               <span className="text-white">Nível {levelInfo.level} — <span className="text-emerald-400 font-bold tracking-wide">{levelInfo.title}</span></span>
             </div>
-            <span className="text-neutral-400 font-mono text-[10px] sm:text-xs">
-              {levelInfo.totalXP} <span className="text-neutral-600">/</span> {levelInfo.nextLevelXP} XP
-            </span>
+            <div className="flex items-center gap-4">
+              <span className="text-neutral-400 font-mono text-[10px] sm:text-xs">
+                {levelInfo.totalXP} <span className="text-neutral-600">/</span> {levelInfo.nextLevelXP} XP
+              </span>
+              <button 
+                onClick={() => setIsImmersiveMode(!isImmersiveMode)}
+                className="hidden lg:flex items-center justify-center p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors"
+                title={isImmersiveMode ? "Sair do Foco Imersivo" : "Foco Imersivo (Expandir)"}
+              >
+                {isImmersiveMode ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
           <div className="h-1.5 sm:h-2 w-full bg-neutral-900 rounded-full overflow-hidden border border-neutral-800">
             <div 
@@ -736,7 +766,7 @@ export default function App() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-xl md:text-2xl font-bold text-white mb-1">Como dominar suas madrugadas de código</h2>
-                  <p className={cn("text-sm", isNightMode ? "text-neutral-500" : "text-neutral-400")}>Manual rápido de sobrevivência e estudos para o SENAI</p>
+                  <p className={cn("text-sm", isNightMode ? "text-neutral-500" : "text-neutral-400")}>Manual rápido de sobrevivência e estudos universais</p>
                 </div>
                 <button onClick={() => setIsHelpOpen(false)} className="text-neutral-500 hover:text-neutral-300 transition-colors">
                   <X className="w-6 h-6" />
@@ -806,40 +836,71 @@ export default function App() {
               className={cn("relative w-full max-w-2xl p-6 rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[85vh]", isNightMode ? "bg-neutral-900 border-neutral-800" : "bg-neutral-950 border-neutral-800")}
             >
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-white">Configurar Trilha Personalizada</h2>
+                <h2 className="text-xl font-bold text-white">Configurações</h2>
                 <button onClick={() => setIsSettingsOpen(false)} className="text-neutral-500 hover:text-neutral-300">
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <p className={cn("text-sm mb-4", isNightMode ? "text-neutral-500" : "text-neutral-400")}>
-                Substitua a trilha padrão colando seu próprio JSON. 
-                Sua progressão será salva localmente, mas incompatibilidades de nomes podem resetar missões.
-              </p>
-              
-              {jsonError && (
-                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-sm">
-                  {jsonError}
+
+              <div className="mb-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-300 mb-2">Trilha de Estudos Ativa</label>
+                  <div className="space-y-2">
+                    {Object.values(curriculums).map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => {
+                          if (window.confirm(`Mudar para a trilha '${c.name}'? Seu progresso original não suportado neste layout ficará invisível até você voltar.`)) {
+                            setSelectedCurriculumId(c.id);
+                            setCustomCurriculum(null);
+                          }
+                        }}
+                        className={cn(
+                          "w-full text-left px-4 py-3 rounded-xl border transition-all flex flex-col gap-1",
+                          selectedCurriculumId === c.id && !customCurriculum
+                            ? "bg-indigo-500/10 border-indigo-500/30 ring-1 ring-indigo-500/50"
+                            : "bg-neutral-900 border-neutral-800 hover:border-neutral-700"
+                        )}
+                      >
+                        <span className="font-medium text-white">{c.name}</span>
+                        <span className="text-xs text-neutral-500">{c.description}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              )}
 
-              <textarea 
-                value={curriculumJson}
-                onChange={(e) => setCurriculumJson(e.target.value)}
-                spellCheck={false}
-                className={cn("w-full flex-grow rounded-xl p-4 text-xs font-mono focus:outline-none mb-6 resize-none transition-colors", isNightMode ? "bg-black border border-neutral-800 text-neutral-300 focus:border-neutral-700" : "bg-neutral-900 border border-neutral-800 text-neutral-200 focus:border-indigo-500/50")}
-              />
+                <div className="border-t border-neutral-800 pt-4">
+                  <h3 className="text-sm font-medium text-neutral-300 mb-2">Trilha Personalizada (Avançado)</h3>
+                  <p className={cn("text-xs mb-3", isNightMode ? "text-neutral-500" : "text-neutral-400")}>
+                    Substitua a trilha padrão colando seu próprio JSON. 
+                  </p>
+                  
+                  {jsonError && (
+                    <div className="mb-3 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-sm">
+                      {jsonError}
+                    </div>
+                  )}
 
-              <div className="flex gap-3 justify-end shrink-0">
+                  <textarea 
+                    value={curriculumJson}
+                    onChange={(e) => setCurriculumJson(e.target.value)}
+                    spellCheck={false}
+                    className={cn("w-full h-32 rounded-xl p-3 text-xs font-mono focus:outline-none mb-4 resize-none transition-colors", isNightMode ? "bg-black border border-neutral-800 text-neutral-300 focus:border-neutral-700" : "bg-neutral-900 border border-neutral-800 text-neutral-200 focus:border-indigo-500/50")}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end shrink-0 mt-auto">
                 <button 
                   onClick={() => {
-                    if (window.confirm('Tem certeza que deseja restaurar a trilha padrão do SENAI? Seu progresso original não suportado neste layout será esquecido.')) {
+                    if (window.confirm(`Restaurar a trilha ${curriculums[selectedCurriculumId].name}?`)) {
                       setCustomCurriculum(null);
                       setIsSettingsOpen(false);
                     }
                   }}
                   className="px-4 py-2 rounded-xl text-sm font-medium text-neutral-400 hover:text-red-400 hover:bg-neutral-800 transition-colors mr-auto"
                 >
-                  Restaurar Original
+                  Limpar Custom
                 </button>
                 <button 
                   onClick={() => setIsSettingsOpen(false)}
@@ -929,7 +990,8 @@ export default function App() {
         
         {/* Left Column - Tracker */}
         <div className={cn(
-          "lg:col-span-7 space-y-8 animate-in fade-in slide-in-from-left-4 duration-500", 
+          "space-y-8 animate-in fade-in slide-in-from-left-4 duration-500", 
+          isImmersiveMode ? "hidden" : "lg:col-span-7",
           isNightMode && "opacity-30 hover:opacity-100 transition-opacity duration-500 contrast-75 saturate-0",
           mobileActiveTab === 'trilha' ? 'block' : 'hidden lg:block'
         )}>
@@ -974,7 +1036,7 @@ export default function App() {
                   </button>
                 </div>
               </div>
-              <p className="text-neutral-500 mb-6">Desenvolvimento de Software SENAI. Foco noturno.</p>
+              <p className="text-neutral-500 mb-6">Plataforma Universal de Desenvolvimento Full-Stack. Foco noturno.</p>
               
               {/* Progress Bar */}
               <div className="bg-neutral-900/50 border border-neutral-800/60 rounded-xl p-5 mb-8">
@@ -1231,7 +1293,8 @@ export default function App() {
 
         {/* Right Column - Active Module & Timer */}
         <div className={cn(
-          isNightMode ? "lg:col-span-5 animate-in zoom-in-95 fade-in duration-700" : "lg:col-span-5",
+          isNightMode ? "animate-in zoom-in-95 fade-in duration-700" : "",
+          isImmersiveMode ? "lg:col-span-12 max-w-4xl mx-auto w-full" : "lg:col-span-5",
           mobileActiveTab === 'foco' ? 'block' : 'hidden lg:block'
         )}>
           <div className={cn("sticky top-12 space-y-6", isNightMode && "space-y-8")}>
@@ -1357,10 +1420,28 @@ export default function App() {
               )}
             </div>
 
-            {/* 5-Min Timer */}
+            {/* Timer */}
             <div className={cn("rounded-2xl border p-6 transition-colors", isNightMode ? "border-neutral-900 bg-neutral-950/40 p-8" : "border-neutral-800 bg-neutral-900/20")}>
-              <div className="text-center mb-6">
-                <div className={cn("text-xs font-mono uppercase tracking-widest mb-1", isNightMode ? "text-neutral-700" : "text-neutral-500")}>Regra dos 5 Minutos</div>
+              <div className="flex flex-col items-center mb-6">
+                <div className="flex w-full items-center justify-between gap-4 mb-4">
+                  <div className={cn("text-xs font-mono uppercase tracking-widest hidden sm:block", isNightMode ? "text-neutral-700" : "text-neutral-500")}>Ciclo</div>
+                  <div className="flex items-center gap-1 mx-auto sm:mx-0">
+                    {[5, 25, 45, 60].map(min => (
+                      <button
+                        key={min}
+                        onClick={() => handleTimerDurationChange(min)}
+                        className={cn(
+                          "px-2 py-1 text-xs font-medium rounded-md transition-all border",
+                          timerDurationMinutes === min
+                            ? (isNightMode ? "bg-neutral-800 text-neutral-300 border-neutral-700" : "bg-indigo-500/20 text-indigo-400 border-indigo-500/30")
+                            : (isNightMode ? "text-neutral-700 hover:text-neutral-500 border-transparent hover:bg-neutral-900" : "text-neutral-500 hover:text-neutral-300 border-transparent hover:bg-neutral-800")
+                        )}
+                      >
+                        {min}m
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className={cn("text-5xl font-mono tracking-tight", isNightMode ? "text-neutral-400" : "text-white")}>{formatTime(timeLeft)}</div>
               </div>
               
@@ -1409,7 +1490,7 @@ export default function App() {
                 <h2 className="font-medium text-white">Carreira Tech (SCTEC)</h2>
               </div>
               <p className={cn("text-xs mb-4 leading-relaxed", isNightMode ? "text-neutral-500" : "text-neutral-400")}>
-                Acompanhe os requisitos obrigatórios do edital do SENAI para aprovação e certificação automática:
+                Acompanhe os requisitos práticos para consolidar seu perfil dev e ser mestre full-stack:
               </p>
               
               <div className="space-y-3">

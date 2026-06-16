@@ -66,7 +66,7 @@ async function startServer() {
   app.post("/api/explain", async (req, res) => {
     try {
       const { topic } = req.body;
-      const prompt = `You are a SENAI Programming Mentor (Mentor TDAH). 
+      const prompt = `You are a Universal Programming Mentor (Mentor TDAH). 
       Give a quick, gamified, and highly scannable explanation of the following topic for a student studying at night, focusing on high engagement, a real-world analogy, and a quick micro-challenge. 
       Topic: ${topic}`;
 
@@ -88,7 +88,7 @@ async function startServer() {
   app.post("/api/review", async (req, res) => {
     try {
       const { topic } = req.body;
-      const prompt = `You are a SENAI Programming Mentor. Generate exactly ONE quick, practical review question about the topic: "${topic}". The question should be direct and test active recall. Keep it under 2 sentences.`;
+      const prompt = `You are a Universal Programming Mentor. Generate exactly ONE quick, practical review question about the topic: "${topic}". The question should be direct and test active recall. Keep it under 2 sentences.`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.1-flash-lite",
@@ -159,11 +159,18 @@ async function startServer() {
 
   app.post("/api/summary", async (req, res) => {
     try {
-      const { logbookEntries, focusData } = req.body;
-      const prompt = `You are a SENAI TDAH Mentor. Analyze the following study logbook entries and focus data for the past days.
-Write a single, highly encouraging and personalized paragraph (max 4 sentences) praising the student's effort, highlighting any technical topics they learned, and ending with a motivational boost. Keep it concise.
+      const { logbookEntries, focusData, completedMissionsCount } = req.body;
+      const prompt = `You are a Universal TDAH Mentor. Analyze the following study logbook entries, focus data, and total completed missions.
+Write a structured, highly encouraging "Relatório Semanal" (Weekly Report) in Markdown format. Your report MUST include:
+1. Uma síntese da variação do humor predominante (baseado nos emojis/humor do logbook).
+2. O progresso da trilha (baseado no tempo de foco e missões concluídas).
+3. Insights sobre quais estados emocionais estão ligados a maiores picos de estudo (correlacionando os dias de maior foco com os humores registrados).
+4. Uma mensagem final de motivação.
+
+Keep it concise (no more than 4-5 short sections) and focused on quick dopamine hits and practical feedback.
 Logbook: ${JSON.stringify(logbookEntries)}
-Focus Data: ${JSON.stringify(focusData)}`;
+Focus Data: ${JSON.stringify(focusData)}
+Completed Missions: ${completedMissionsCount}`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3.1-flash-lite",
@@ -186,7 +193,7 @@ Focus Data: ${JSON.stringify(focusData)}`;
 
   wss.on("connection", async (clientWs) => {
     try {
-      let liveSystemInstruction = "You are a SENAI TDAH Mentor helping a student study late at night. Be extremely encouraging, speak in short sentences, and be practical.";
+      let liveSystemInstruction = "You are a Universal TDAH Mentor helping a student study late at night. Be extremely encouraging, speak in short sentences, and be practical.";
       try {
         const agentsMd = require('fs').readFileSync(require('path').join(process.cwd(), 'AGENTS.md'), 'utf-8');
         liveSystemInstruction = agentsMd + "\\n\\nIMPORTANT FOR VOICE: Keep answers under 3 short sentences. Be conversational.";

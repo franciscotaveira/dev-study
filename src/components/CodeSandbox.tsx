@@ -166,13 +166,13 @@ const TRACKS: Track[] = [
         id: "html-l3",
         name: "Hiperlinks de Navegação",
         objective:
-          "Crie uma tag de link clicável (anchor <a>) que leve ao portal do SENAI em uma aba externa utilizando o atributo apropriado.",
+          "Crie uma tag de link clicável (anchor <a>) que leve ao portal da documentação oficial (MDN) em uma aba externa utilizando o atributo apropriado.",
         whatIs:
           'A tag <a> utiliza href para o destino e target="_blank" para instruir o navegador a abrir o link em uma nova janela sem fechar o portal.',
         analogy:
           'Imagine um portal mágico: o "href" aponta as coordenadas do destino e o "target" escolhe se você abre uma nova porta ou reforma a sala atual.',
         minCode:
-          '<a href="https://www.senai.br" target="_blank">Clique Aqui</a>',
+          '<a href="https://developer.mozilla.org" target="_blank">Clique Aqui</a>',
         defaultHtml:
           "<h1>Links Importantes</h1>\n<!-- Crie o link abaixo -->\n",
         defaultCss:
@@ -184,11 +184,10 @@ const TRACKS: Track[] = [
             check: (html) => html.includes("<a") && html.includes("</a>"),
           },
           {
-            text: 'Conter o atributo "href" apontando para o site do SENAI',
+            text: 'Conter o atributo "href" apontando para o site da MDN',
             check: (html) =>
-              html.includes('href="https://www.senai.br"') ||
-              html.includes("href='https://www.senai.br'") ||
-              html.includes('href="https://senai.br"'),
+              html.includes('href="https://developer.mozilla.org"') ||
+              html.includes("href='https://developer.mozilla.org'"),
           },
           {
             text: 'Conter target="_blank" para abrir em outra aba',
@@ -208,7 +207,7 @@ const TRACKS: Track[] = [
         minCode:
           "<ul>\n  <li>Caderno</li>\n  <li>Caneta</li>\n  <li>Notebook</li>\n</ul>",
         defaultHtml:
-          "<h2>Meus Materiais do SENAI</h2>\n<!-- Insira sua lista abaixo -->\n",
+          "<h2>Meus Materiais de Estudo</h2>\n<!-- Insira sua lista abaixo -->\n",
         defaultCss:
           "body {\n  font-family: sans-serif;\n  background-color: #0f172a;\n  color: #f8fafc;\n  padding: 30px;\n}\nli {\n  color: #a78bfa;\n  line-height: 1.8;\n}",
         defaultJs: "",
@@ -340,7 +339,7 @@ const TRACKS: Track[] = [
           "É como colocar um estofado fofinho dentro de uma caixa de papelão dura e arredondar suas quinas cortantes.",
         minCode: ".cartao {\n  border-radius: 12px;\n  padding: 20px;\n}",
         defaultHtml:
-          '<div class="cartao">\n  <h3>Informações Rápidas</h3>\n  <p>Conteúdo estrito da trilha prática do SENAI.</p>\n</div>',
+          '<div class="cartao">\n  <h3>Informações Rápidas</h3>\n  <p>Conteúdo estrito da trilha prática de programação universal.</p>\n</div>',
         defaultCss:
           ".cartao {\n  background-color: #1e293b;\n  color: #f8fafc;\n  /* Arredonde os cantos e crie padding interno */\n}",
         defaultJs: "",
@@ -681,7 +680,7 @@ ${jsCode}
 - ${activeLesson.objective}
 
 **COMENTÁRIOS / DÚVIDA DO ESTUDANTE:**
-Estou exercitando o laboratório prático de HTML/CSS e JavaScript para o SENAI. Avalie meu progresso, dê dicas socráticas e apresente o próximo passo para manter o meu foco de estudo da madrugada ativo!`;
+Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas socráticas e apresente o próximo passo para manter o meu foco de estudo da madrugada ativo!`;
 
     onSendToMentor(payload);
   };
