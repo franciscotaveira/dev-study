@@ -1,0 +1,859 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Play, RotateCcw, Sparkles, Copy, CheckCircle2, Monitor, Code, 
+  HelpCircle, Terminal, Bug, Check, Trash2, Award, Lightbulb, 
+  RefreshCw, Zap, Bookmark, Lock, ChevronRight, CheckCircle, X
+} from 'lucide-react';
+
+interface CodeSandboxProps {
+  onSendToMentor: (code: string) => void;
+  isNightMode?: boolean;
+}
+
+interface Lesson {
+  id: string;
+  name: string;
+  objective: string;
+  whatIs: string;
+  analogy: string;
+  minCode: string;
+  specs: { text: string; check: (html: string, css: string, js: string) => boolean }[];
+  defaultHtml: string;
+  defaultCss: string;
+  defaultJs: string;
+  isBugChallenge?: boolean;
+}
+
+interface Track {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  lessons: Lesson[];
+}
+
+const TRACKS: Track[] = [
+  {
+    id: 'html-basico',
+    name: 'HTML Estrutural',
+    icon: '📄',
+    color: 'text-orange-400 border-orange-500/20 bg-orange-500/5',
+    lessons: [
+      {
+        id: 'html-l1',
+        name: 'Cabeçalho e Parágrafo',
+        objective: 'Crie seu primeiro título principal h1 e um parágrafo p com texto descritivo.',
+        whatIs: 'HTML funciona como os ossos do corpo. <h1> define o título mais importante e <p> define blocos de texto comuns.',
+        analogy: 'Imagine um jornal físico: o <h1> é a manchete gigante da capa, e o <p> é o texto da matéria logo abaixo.',
+        minCode: '<h1>Meu Título</h1>\n<p>Meu parágrafo descritivo.</p>',
+        defaultHtml: '<!-- Escreva seu h1 e p abaixo -->\n',
+        defaultCss: 'body {\n  font-family: sans-serif;\n  background-color: #0f172a;\n  color: #f8fafc;\n  padding: 30px;\n}',
+        defaultJs: '// Console pronto!\nconsole.log("Laboratório Iniciado!");',
+        specs: [
+          {
+            text: 'Conter uma tag de abertura e fechamento para <h1>',
+            check: (html) => html.includes('<h1>') && html.includes('</h1>')
+          },
+          {
+            text: 'Conter uma tag de abertura e fechamento para <p>',
+            check: (html) => html.includes('<p>') && html.includes('</p>')
+          },
+          {
+            text: 'Possuir um conteúdo de texto visível dentro do <p>',
+            check: (html) => {
+              const match = html.match(/<p>([\s\S]*?)<\/p>/);
+              return !!match && match[1].trim().length > 3;
+            }
+          }
+        ]
+      },
+      {
+        id: 'html-l2',
+        name: 'Atributos & Imagens',
+        objective: 'Adicione uma imagem na tela usando a tag img com os atributos src (origem) e alt (texto alternativo de acessibilidade).',
+        whatIs: 'Imagens não têm tag de fechamento (são auto-fechadas) e exigem atributos informativos como "src" para localizar o arquivo e "alt" para leitores de tela.',
+        analogy: 'O "src" é o endereço de entrega do carteiro, e o "alt" é a descrição da encomenda caso o destinatário não possa enxergar.',
+        minCode: '<img src="https://picsum.photos/150" alt="Foto de exemplo">',
+        defaultHtml: '<h1>Galeria Prática</h1>\n<!-- Adicione a tag img abaixo -->\n',
+        defaultCss: 'body {\n  font-family: sans-serif;\n  background-color: #0f172a;\n  color: #f8fafc;\n  padding: 30px;\n}\nimg {\n  border: 3px solid #6366f1;\n  border-radius: 8px;\n}',
+        defaultJs: '',
+        specs: [
+          {
+            text: 'Conter a tag de imagem <img ...>',
+            check: (html) => html.includes('<img')
+          },
+          {
+            text: 'Conter o atributo essencial "src" apontando para uma URL',
+            check: (html) => html.includes('src=')
+          },
+          {
+            text: 'Conter o atributo acessível "alt" preenchido',
+            check: (html) => html.includes('alt=') && !html.includes('alt=""')
+          }
+        ]
+      },
+      {
+        id: 'html-l3',
+        name: 'Hiperlinks de Navegação',
+        objective: 'Crie uma tag de link clicável (anchor <a>) que leve ao portal do SENAI em uma aba externa utilizando o atributo apropriado.',
+        whatIs: 'A tag <a> utiliza href para o destino e target="_blank" para instruir o navegador a abrir o link em uma nova janela sem fechar o portal.',
+        analogy: 'Imagine um portal mágico: o "href" aponta as coordenadas do destino e o "target" escolhe se você abre uma nova porta ou reforma a sala atual.',
+        minCode: '<a href="https://www.senai.br" target="_blank">Clique Aqui</a>',
+        defaultHtml: '<h1>Links Importantes</h1>\n<!-- Crie o link abaixo -->\n',
+        defaultCss: 'body {\n  font-family: sans-serif;\n  background-color: #0f172a;\n  color: #f8fafc;\n  padding: 30px;\n}\na {\n  color: #38bdf8;\n  text-decoration: none;\n  font-weight: bold;\n}',
+        defaultJs: '',
+        specs: [
+          {
+            text: 'Conter uma tag de link <a>',
+            check: (html) => html.includes('<a') && html.includes('</a>')
+          },
+          {
+            text: 'Conter o atributo "href" apontando para o site do SENAI',
+            check: (html) => html.includes('href="https://www.senai.br"') || html.includes('href=\'https://www.senai.br\'') || html.includes('href="https://senai.br"')
+          },
+          {
+            text: 'Conter target="_blank" para abrir em outra aba',
+            check: (html) => html.includes('target="_blank"')
+          }
+        ]
+      },
+      {
+        id: 'html-l4',
+        name: 'Listas e Coleções',
+        objective: 'Desenvolva uma lista não-ordenada (ul) contendo no mínimo 3 itens (li) com materiais de estudo.',
+        whatIs: '<ul> define a lista com bolinhas (não numerada), enquanto cada item obrigatório dentro dela deve ser englobado por <li>.',
+        analogy: 'A lista de compras: o pedaço de papel inteiro é a tag <ul>, e cada linha com um produto escrito é um <li>.',
+        minCode: '<ul>\n  <li>Caderno</li>\n  <li>Caneta</li>\n  <li>Notebook</li>\n</ul>',
+        defaultHtml: '<h2>Meus Materiais do SENAI</h2>\n<!-- Insira sua lista abaixo -->\n',
+        defaultCss: 'body {\n  font-family: sans-serif;\n  background-color: #0f172a;\n  color: #f8fafc;\n  padding: 30px;\n}\nli {\n  color: #a78bfa;\n  line-height: 1.8;\n}',
+        defaultJs: '',
+        specs: [
+          {
+            text: 'Conter a tag de lista <ul> de abertura e fechamento',
+            check: (html) => html.includes('<ul>') && html.includes('</ul>')
+          },
+          {
+            text: 'Conter no mínimo 3 elementos de item <li>',
+            check: (html) => {
+              const matches = html.match(/<li[\s>]/g);
+              const closes = html.match(/<\/li>/g);
+              return !!matches && !!closes && matches.length >= 3 && closes.length >= 3;
+            }
+          }
+        ]
+      },
+      {
+        id: 'html-bug-challenge',
+        name: 'Desafio do Bug: A Tag Órfã',
+        isBugChallenge: true,
+        objective: 'O programador da madrugada esqueceu de fechar a tag de título principal, fazendo com que o parágrafo de baixo ficasse grande e vermelho! Feche o <h1> corretamente para isolar o estilo.',
+        whatIs: 'Uma tag sem fechamento é chamada de tag órfã. Ela aplica seu estilo a absolutamente todo o conteúdo que vier depois dela na página.',
+        analogy: 'É como abrir a torneira do banheiro e sair de casa: a água vai inundar o corredor inteiro de forma indesejada se não for fechada!',
+        minCode: '</h1> <!-- Feche o h1 que está quebrado -->',
+        defaultHtml: '<h1 style="color: #ef4444">Meu Tópico Favorito\n\n<p>Esse parágrafo deve ser pequeno e cinza, mas por falta de fechamento do h1 acima ele acabou herdando o estilo gigante!</p>',
+        defaultCss: 'body {\n  font-family: sans-serif;\n  background-color: #0f172a;\n  color: #94a3b8;\n  padding: 30px;\n}',
+        defaultJs: 'console.log("Bug carregado!");',
+        specs: [
+          {
+            text: 'HTML deve conter a tag de fechamento para o título principal (</h1>)',
+            check: (html) => html.replace(/\s/g, '').includes('</h1>')
+          },
+          {
+            text: 'O h1 com style="color: #ef4444" precisa manter o texto "Meu Tópico Favorito"',
+            check: (html) => html.includes('Meu Tópico Favorito')
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'css-visual',
+    name: 'CSS Visual & Estilo',
+    icon: '🎨',
+    color: 'text-indigo-400 border-indigo-500/20 bg-indigo-500/5',
+    lessons: [
+      {
+        id: 'css-l1',
+        name: 'Plano de Fundo Escuro',
+        objective: 'Substitua a cor de fundo do seu documento aplicando a regra background-color no body.',
+        whatIs: 'CSS gerencia o visual e design. O seletor "body" altera a página completa, e a propriedade background-color dita a cor do fundo.',
+        analogy: 'Funciona como pintar a parede de uma sala de estar vazia antes de escolher os móveis.',
+        minCode: 'body {\n  background-color: #090d16;\n}',
+        defaultHtml: '<h1>Título de Teste</h1>\n<p>Veja como o fundo escuro melhora a leitura de madrugada.</p>',
+        defaultCss: '/* Altere o background-color do body abaixo */\nbody {\n  background-color: white;\n  color: #333;\n}',
+        defaultJs: '',
+        specs: [
+          {
+            text: 'body no CSS configurado com um fundo escuro (ex: #090d16, #0f172a, #1e1e2e)',
+            check: (_, css) => {
+              const dryCSS = css.replace(/\s/g, '').toLowerCase();
+              return dryCSS.includes('body{') && 
+                     (dryCSS.includes('background-color:#090d16') || 
+                      dryCSS.includes('background-color:#0f172a') || 
+                      dryCSS.includes('background-color:#1e1e2e') || 
+                      dryCSS.includes('background-color:black') ||
+                      dryCSS.includes('background:#') ||
+                      dryCSS.includes('background-color:#'));
+            }
+          }
+        ]
+      },
+      {
+        id: 'css-l2',
+        name: 'Cabeçalhos Coloridos',
+        objective: 'Adicione uma cor marcante exclusiva para as tags h1 na folha de CSS.',
+        whatIs: 'O seletor direto escreve propriedades específicas apenas em elementos correspondentes, substituindo estilos genéricos.',
+        analogy: 'É como pintar somente as portas de madeira da casa de azul bebê para se destacarem do resto da parede.',
+        minCode: 'h1 {\n  color: #22c55e;\n}',
+        defaultHtml: '<h1>Menu Principal</h1>\n<p>Texto comum do sistema.</p>',
+        defaultCss: 'body {\n  background-color: #0c0f17;\n  color: #f1f5f9;\n  font-family: sans-serif;\n}\n/* Adicione o seletor h1 abaixo */\n',
+        defaultJs: '',
+        specs: [
+          {
+            text: 'Conter seletor h1 { ... } no estilo',
+            check: (_, css) => css.replace(/\s/g, '').toLowerCase().includes('h1{')
+          },
+          {
+            text: 'Atribuir a propriedade color para uma tonalidade diferente',
+            check: (_, css) => {
+              const dry = css.replace(/\s/g, '').toLowerCase();
+              return dry.includes('h1{') && dry.includes('color:');
+            }
+          }
+        ]
+      },
+      {
+        id: 'css-l3',
+        name: 'Contornos & Bordas',
+        objective: 'Deixe as bordas e cantos do seu cartão com visual arredondado aplicando as propriedades border-radius e padding.',
+        whatIs: 'border-radius suaviza os cantos retos de caixas HTML, e padding empurra o conteúdo para dentro com excelente margem interna.',
+        analogy: 'É como colocar um estofado fofinho dentro de uma caixa de papelão dura e arredondar suas quinas cortantes.',
+        minCode: '.cartao {\n  border-radius: 12px;\n  padding: 20px;\n}',
+        defaultHtml: '<div class="cartao">\n  <h3>Informações Rápidas</h3>\n  <p>Conteúdo estrito da trilha prática do SENAI.</p>\n</div>',
+        defaultCss: '.cartao {\n  background-color: #1e293b;\n  color: #f8fafc;\n  /* Arredonde os cantos e crie padding interno */\n}',
+        defaultJs: '',
+        specs: [
+          {
+            text: 'Definir a propriedade border-radius para suavizar os cantos',
+            check: (_, css) => css.includes('border-radius')
+          },
+          {
+            text: 'Definir a propriedade padding para criar margem de respiração',
+            check: (_, css) => css.includes('padding')
+          }
+        ]
+      },
+      {
+        id: 'css-bug-challenge',
+        name: 'Desafio do Bug: O Botão Invisível',
+        isBugChallenge: true,
+        objective: 'O botão de submissão sumiu da tela! O background-color da classe ".btn-invisivel" está idêntico ao background do body (#090d16) e o texto é da mesma cor. Altere o estilo do botão para que ele reapareça de forma nítida!',
+        whatIs: 'Garantir contraste visual entre elementos e fundos é uma das diretrizes essenciais de acessibilidade (WCAG). Se o texto e fundo forem iguais, o elemento se torna invisível.',
+        analogy: 'Escrever uma carta usando caneta preta sobre um papel preto te impede de ler e assinar o documento!',
+        minCode: '.btn-invisivel {\n  background-color: #ca8a04;\n  color: #ffffff;\n}',
+        defaultHtml: '<h2>Formulário Prático</h2>\n<button class="btn-invisivel">Enviar Resposta</button>',
+        defaultCss: 'body {\n  font-family: sans-serif;\n  background-color: #090d16;\n  color: #fff;\n  padding: 30px;\n}\n.btn-invisivel {\n  background-color: #090d16; /* Mude esta cor para verde, ouro ou indigo */\n  color: #090d16; /* Mude esta cor para uma legível, como white */\n  border: 1px solid #334155;\n  padding: 8px 16px;\n  border-radius: 6px;\n  cursor: pointer;\n}',
+        defaultJs: 'console.log("Bug visual carregado!");',
+        specs: [
+          {
+            text: 'Modificar background-color da classe .btn-invisivel no CSS para algo diferente de #090d16',
+            check: (_, css) => {
+              const dry = css.replace(/\s/g, '').toLowerCase();
+              return dry.includes('.btn-invisivel{') && !dry.includes('background-color:#090d16;') && !dry.includes('background:#090d16;');
+            }
+          },
+          {
+            text: 'Modificar a propriedade color da classe .btn-invisivel no CSS para se destacar do fundo',
+            check: (_, css) => {
+              const dry = css.replace(/\s/g, '').toLowerCase();
+              return dry.includes('.btn-invisivel{') && !dry.includes('color:#090d16;');
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'js-interativo',
+    name: 'JS Comportamental',
+    icon: '⚡',
+    color: 'text-amber-400 border-amber-500/20 bg-amber-500/5',
+    lessons: [
+      {
+        id: 'js-l1',
+        name: 'Controlando o DOM',
+        objective: 'Mude de forma automática o conteúdo exibido de um título buscando-o pelo ID utilizando JavaScript.',
+        whatIs: 'O JS acessa a página através do DOM (Document Object Model). document.getElementById encontra o alvo e .textContent substitui o texto escrito.',
+        analogy: 'Imagine um interruptor em casa: com o ID "sala", você localiza a lâmpada correta do teto e muda seu estado.',
+        minCode: 'const elem = document.getElementById("titulo");\nelem.textContent = "Modificado!";',
+        defaultHtml: '<h1 id="titulo">Título Original</h1>',
+        defaultCss: 'body { font-family: sans-serif; background: #0f172a; color: #fff; padding: 30px; }',
+        defaultJs: '// Use document.getElementById para alterar o textContent abaixo\n',
+        specs: [
+          {
+            text: 'Chamar document.getElementById("titulo") ou equivalente',
+            check: (_, __, js) => js.includes('document.getElementById') && (js.includes('titulo') || js.includes('titulo'))
+          },
+          {
+            text: 'Modificar o conteúdo do texto por atribuição de textContent',
+            check: (_, __, js) => js.includes('.textContent')
+          }
+        ]
+      },
+      {
+        id: 'js-l2',
+        name: 'Escuta Automática de Cliques',
+        objective: 'Engaje um escutador de eventos addEventListener para alertar ou modificar a interface ao ser pressionado.',
+        whatIs: 'addEventListener aguarda um disparo físico do mouse, como "click", e executa em sequência uma função/procedimento de reflexo.',
+        analogy: 'É o sensor de presença do portão automático: sempre que algo passa (evento), o motor abre a grade (ação).',
+        minCode: 'const botao = document.getElementById("meu-botao");\nbotao.addEventListener("click", () => {\n  console.log("Clicado!");\n});',
+        defaultHtml: '<button id="meu-botao">Aperte Aqui</button>\n<p id="feedback"></p>',
+        defaultCss: 'body { font-family: sans-serif; background: #0c0f17; color: #fff; text-align: center; padding: 40px; }\nbutton { background: #6366f1; border: none; color: white; padding: 10px 18px; border-radius: 6px; font-weight: bold; cursor: pointer; }',
+        defaultJs: '// Capture o botão e configure o clique\n',
+        specs: [
+          {
+            text: 'Encontrar o botão usando getElementById',
+            check: (_, __, js) => js.includes('getElementById')
+          },
+          {
+            text: 'Adicionar a escuta addeventlistener para o clique',
+            check: (_, __, js) => js.toLowerCase().includes('addeventlistener') && js.toLowerCase().includes('click')
+          }
+        ]
+      },
+      {
+        id: 'js-bug-challenge',
+        name: 'Desafio do Bug: Evento Fantasma',
+        isBugChallenge: true,
+        objective: 'O botão de feedback parou de responder a cliques do mouse! Há um evidente erro de ortografia no nome do evento registrado pelo programador no addEventListener. Resolva a string de escuta!',
+        whatIs: 'O navegador só reconhece strings de eventos padronizadas do sistema, tais como "click", "keydown", "submit". Chamar "clik" faz o navegador ignorar silenciosamente o listener.',
+        analogy: 'Se você chamar o elevador assobiando em vez de apertar o botão físico de metal, a máquina nunca vai descer buscar você no térreo!',
+        minCode: 'botao.addEventListener("click", () => { ... })',
+        defaultHtml: '<button id="btn-click">Desparar Missão</button>\n<p id="feedback">Aguardando...</p>',
+        defaultCss: 'body { font-family: sans-serif; text-align: center; background-color: #07090e; color: #f1f5f9; padding: 40px; }\nbutton { background-color: #c084fc; border: none; color: #000; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }',
+        defaultJs: 'const botao = document.getElementById("btn-click");\nconst resultado = document.getElementById("feedback");\n// O erro de digitação está na string "clik"\nbotao.addEventListener("clik", () => {\n  resultado.textContent = "Parabéns! Sistema de Depuração Concluído com Sucesso! 🥇";\n});',
+        specs: [
+          {
+            text: 'Corrigir o ouvinte para usar o evento padrão e estrito de clique ("click")',
+            check: (_, __, js) => {
+              const cleaned = js.replace(/\s/g, '').toLowerCase();
+              return cleaned.includes('addeventlistener("click"') || cleaned.includes('addeventlistener(\'click\'') || cleaned.includes('addeventlistener(`click`');
+            }
+          },
+          {
+            text: 'Configurar a mensagem de retorno com sucesso no clique',
+            check: (_, __, js) => js.includes('textContent')
+          }
+        ]
+      }
+    ]
+  }
+];
+
+export default function CodeSandbox({ onSendToMentor, isNightMode }: CodeSandboxProps) {
+  const [activeTab, setActiveTab] = useState<'html' | 'css' | 'js'>('html');
+  const [activeTrackIdx, setActiveTrackIdx] = useState(0);
+  const [activeLessonIdx, setActiveLessonIdx] = useState(0);
+
+  const activeTrack = TRACKS[activeTrackIdx];
+  const activeLesson = activeTrack.lessons[activeLessonIdx];
+
+  // Code state derived from lesson selection
+  const [htmlCode, setHtmlCode] = useState(activeLesson.defaultHtml);
+  const [cssCode, setCssCode] = useState(activeLesson.defaultCss);
+  const [jsCode, setJsCode] = useState(activeLesson.defaultJs);
+
+  const [copied, setCopied] = useState(false);
+  const [previewKey, setPreviewKey] = useState(0);
+  const [lessonFinished, setLessonFinished] = useState(false);
+  const [validationState, setValidationState] = useState<'idle' | 'success' | 'error'>('idle');
+
+  // Sync state on lesson change
+  useEffect(() => {
+    setHtmlCode(activeLesson.defaultHtml);
+    setCssCode(activeLesson.defaultCss);
+    setJsCode(activeLesson.defaultJs);
+    setLessonFinished(false);
+    setValidationState('idle');
+    setPreviewKey(prev => prev + 1);
+  }, [activeTrackIdx, activeLessonIdx]);
+
+  // Compute test specifications in real time
+  const specsChecked = useMemo(() => {
+    return activeLesson.specs.map(spec => ({
+      text: spec.text,
+      passed: spec.check(htmlCode, cssCode, jsCode)
+    }));
+  }, [htmlCode, cssCode, jsCode, activeLesson]);
+
+  // Check if all automated specs passed
+  const allSpecsPassed = useMemo(() => {
+    return specsChecked.length > 0 && specsChecked.every(s => s.passed);
+  }, [specsChecked]);
+
+  const handleVerifyCode = () => {
+    if (allSpecsPassed) {
+      setValidationState('success');
+      setLessonFinished(true);
+    } else {
+      setValidationState('error');
+    }
+  };
+
+  const combinedSrcDoc = useMemo(() => {
+    return `
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8">
+        <style>
+          ${cssCode}
+        </style>
+      </head>
+      <body>
+        ${htmlCode}
+        <script>
+          try {
+            ${jsCode}
+          } catch(err) {
+            console.error("Erro no script:", err.message);
+          }
+        </script>
+      </body>
+      </html>
+    `;
+  }, [htmlCode, cssCode, jsCode]);
+
+  const copyCode = () => {
+    let textToCopy = htmlCode;
+    if (activeTab === 'css') textToCopy = cssCode;
+    if (activeTab === 'js') textToCopy = jsCode;
+    
+    navigator.clipboard.writeText(textToCopy);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleNextLevel = () => {
+    if (activeLessonIdx < activeTrack.lessons.length - 1) {
+      setActiveLessonIdx(prev => prev + 1);
+    } else if (activeTrackIdx < TRACKS.length - 1) {
+      setActiveTrackIdx(prev => prev + 1);
+      setActiveLessonIdx(0);
+    }
+  };
+
+  const handleAskMentor = () => {
+    const payload = `🚨 [CÓDIGO DO LABORATÓRIO PRÁTICO PROGRESSIVO] 🚨
+
+**TRILHA:** ${activeTrack.name}
+**ATIVIDADE:** ${activeLesson.name}
+**ESTADO ATUAL:** ${allSpecsPassed ? 'Aprovado nos testes automáticos! 🎉' : 'Tentando resolver os testes.'}
+
+------------------
+**HTML (index.html):**
+\`\`\`html
+${htmlCode}
+\`\`\`
+
+**CSS (style.css):**
+\`\`\`css
+${cssCode}
+\`\`\`
+
+**Javascript (script.js):**
+\`\`\`javascript
+${jsCode}
+\`\`\`
+
+**OBJETIVO DA LIÇÃO:**
+- ${activeLesson.objective}
+
+**COMENTÁRIOS / DÚVIDA DO ESTUDANTE:**
+Estou exercitando o laboratório prático de HTML/CSS e JavaScript para o SENAI. Avalie meu progresso, dê dicas socráticas e apresente o próximo passo para manter o meu foco de estudo da madrugada ativo!`;
+
+    onSendToMentor(payload);
+  };
+
+  const currentEditorCode = () => {
+    if (activeTab === 'css') return cssCode;
+    if (activeTab === 'js') return jsCode;
+    return htmlCode;
+  };
+
+  const handleTextareaChange = (val: string) => {
+    setValidationState('idle');
+    if (activeTab === 'css') setCssCode(val);
+    else if (activeTab === 'js') setJsCode(val);
+    else setHtmlCode(val);
+  };
+
+  const injectTag = (tagType: string) => {
+    if (activeTab !== 'html') {
+      setActiveTab('html');
+    }
+    
+    let inlineTag = '';
+    switch(tagType) {
+      case 'button':
+        inlineTag = '\n<button id="meu-novo-botao">Clique Aqui</button>';
+        break;
+      case 'p':
+        inlineTag = '\n<p>Adicionei um novo parágrafo explicativo!</p>';
+        break;
+      case 'img':
+        inlineTag = '\n<img src="https://picsum.photos/250/150" alt="Imagem de Teste" />';
+        break;
+      case 'input':
+        inlineTag = '\n<input type="text" placeholder="Escreva algo prático..." />';
+        break;
+      case 'div':
+        inlineTag = '\n<div style="padding: 10px; border: 1px dashed #6366f1;">\n  <h3>Nova Seção</h3>\n</div>';
+        break;
+      default:
+        break;
+    }
+    setHtmlCode(prev => prev + inlineTag);
+  };
+
+  const restoreDefault = () => {
+    if (confirm("Deseja redefinir este exercício de volta ao código padrão?")) {
+      setHtmlCode(activeLesson.defaultHtml);
+      setCssCode(activeLesson.defaultCss);
+      setJsCode(activeLesson.defaultJs);
+      setPreviewKey(prev => prev + 1);
+    }
+  };
+
+  return (
+    <div className={`p-4 sm:p-5 rounded-2xl border transition-colors ${isNightMode ? 'bg-neutral-900/50 border-neutral-800' : 'bg-neutral-900 border-neutral-800'}`}>
+      
+      {/* Track Selector Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <Terminal className="w-5 h-5 text-indigo-400" />
+          <h3 className="font-semibold text-white">Laboratório Interativo Real-Time</h3>
+        </div>
+        <div className="flex items-center gap-1">
+          {TRACKS.map((t, idx) => (
+            <button
+              key={t.id}
+              onClick={() => {
+                setActiveTrackIdx(idx);
+                setActiveLessonIdx(0);
+              }}
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 ${activeTrackIdx === idx ? 'bg-indigo-500 text-white' : 'bg-neutral-950 text-neutral-400 hover:text-white hover:bg-neutral-800'}`}
+            >
+              <span>{t.icon}</span>
+              <span className="hidden xs:inline">{t.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <p className="text-xs text-neutral-400 mb-4 leading-relaxed">
+        Não precisa alternar para o VS Code agora! Selecione as missões abaixo para escrever seu código com testes automatizados em tempo real.
+      </p>
+
+      {/* Level Roadmap Map Inside Current Track */}
+      <div className="bg-neutral-950/80 p-3 rounded-xl mb-4 border border-neutral-800/80 flex items-center gap-3 overflow-x-auto scrollbar-thin">
+        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider shrink-0">Etapas:</span>
+        <div className="flex items-center gap-2 w-full">
+          {activeTrack.lessons.map((les, idx) => {
+            const isSelected = activeLessonIdx === idx;
+            const isBug = les.isBugChallenge;
+            return (
+              <button
+                key={les.id}
+                onClick={() => setActiveLessonIdx(idx)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
+                  isSelected 
+                    ? isBug 
+                      ? 'bg-rose-500/10 border-rose-500 text-rose-300 animate-pulse'
+                      : 'bg-indigo-500/10 border-indigo-500 text-indigo-300' 
+                    : isBug
+                      ? 'bg-rose-950/30 hover:bg-rose-950/50 text-rose-400 border-rose-900/30'
+                      : 'bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border-neutral-800/80'
+                }`}
+              >
+                {isBug ? (
+                  <span className="flex items-center gap-1">🐛 Bug Master</span>
+                ) : (
+                  <span>Nível {idx + 1}</span>
+                )}
+                <span className="hidden sm:inline font-normal opacity-90">- {les.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Lesson Details & Instructions - Redesigned focusing on TDAH principles */}
+      <div className={`p-4 rounded-xl mb-4 border space-y-3 transition-colors ${
+        activeLesson.isBugChallenge 
+          ? 'bg-rose-950/10 border-rose-500/20' 
+          : 'bg-indigo-500/5 border-indigo-500/10'
+      }`}>
+        <div className="flex items-center justify-between">
+          <span className={`text-[10px] font-bold flex items-center gap-1 uppercase tracking-wider ${
+            activeLesson.isBugChallenge ? 'text-rose-400' : 'text-indigo-400'
+          }`}>
+            {activeLesson.isBugChallenge ? <Bug className="w-3.5 h-3.5 animate-bounce" /> : <Lightbulb className="w-3.5 h-3.5" />} 
+            {activeLesson.isBugChallenge ? 'DESAFIO DO BUG DO PROFESSOR' : `Missão ${activeLessonIdx + 1}: ${activeLesson.name}`}
+          </span>
+          <span className="text-[10px] text-neutral-500 font-mono">Regra dos 5 Minutos ⏱️</span>
+        </div>
+        
+        <div>
+          <h4 className="text-xs font-bold text-white mb-1">O Objetivo Prático</h4>
+          <p className="text-xs text-neutral-300 leading-relaxed font-semibold">
+            {activeLesson.objective}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 border-t border-indigo-500/10 text-[11px] leading-relaxed text-neutral-400">
+          <div>
+            <span className="font-bold text-indigo-300">💡 O que é:</span> {activeLesson.whatIs}
+          </div>
+          <div>
+            <span className="font-bold text-indigo-300">✨ Analogia do Mundo Real:</span> {activeLesson.analogy}
+          </div>
+        </div>
+
+        <div className="p-2.5 rounded-lg bg-neutral-950 text-[11px] font-mono border border-neutral-800/80">
+          <div className="flex items-center justify-between mb-1 text-[10px] text-neutral-500">
+            <span>Código Mínimo Recomendado</span>
+            <button 
+              onClick={() => navigator.clipboard.writeText(activeLesson.minCode)}
+              className="text-neutral-400 hover:text-white text-[9px] flex items-center gap-0.5"
+            >
+              <Copy className="w-2.5 h-2.5" /> Copiar Exemplo
+            </button>
+          </div>
+          <pre className="text-indigo-300 whitespace-pre scrollbar-none overflow-x-auto">{activeLesson.minCode}</pre>
+        </div>
+      </div>
+
+      {/* Interactive Specifications / Automated Tests checklist */}
+      <div className="p-3 bg-neutral-950 rounded-xl mb-4 border border-neutral-800/80">
+        <h4 className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+          <Zap className="w-3.5 h-3.5 text-amber-400" /> Testes de Validação Automáticos:
+        </h4>
+        <div className="space-y-2 mb-3">
+          {specsChecked.map((spec, i) => (
+            <div key={i} className="flex items-start gap-2 text-xs">
+              <div className="mt-0.5 shrink-0">
+                {validationState !== 'idle' ? (
+                  spec.passed ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 fill-emerald-400/5" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border-2 border-rose-500/80 flex items-center justify-center text-[10px] bg-rose-500/10">
+                      <X className="w-2.5 h-2.5 text-rose-500" />
+                    </div>
+                  )
+                ) : (
+                  <div className="w-4 h-4 rounded-full border-2 border-neutral-700/80 flex items-center justify-center text-[10px]" />
+                )}
+              </div>
+              <span className={validationState !== 'idle' && spec.passed ? 'text-neutral-500 line-through' : 'text-neutral-300'}>
+                {spec.text}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {!lessonFinished && (
+            <button
+              onClick={handleVerifyCode}
+              className="flex items-center justify-center gap-2 w-full py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs rounded-lg transition-colors border border-indigo-400/20"
+            >
+              <CheckCircle className="w-4 h-4" /> Verificar Código
+            </button>
+          )}
+          
+          {validationState === 'error' && (
+            <div className="p-2 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 text-[11px] font-semibold text-center animate-pulse">
+              Ainda há testes falhando. Revise seu código, observe a cor dos ícones acima e tente novamente!
+            </div>
+          )}
+        </div>
+
+        {lessonFinished && (
+          <div className="mt-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-start flex-col sm:flex-row sm:items-center justify-between gap-3 text-emerald-400 animate-in fade-in zoom-in-95 duration-500">
+            <div className="flex items-center gap-1.5">
+              <Award className="w-4 h-4 shrink-0" />
+              <span className="text-xs font-bold leading-tight">Incrível! Você acabou de passar em todos os testes desta missão! 🎉</span>
+            </div>
+            <button
+              onClick={handleNextLevel}
+              className="bg-emerald-500 text-neutral-950 font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded hover:bg-emerald-400 transition-colors w-full sm:w-auto text-center"
+            >
+              Avançar Próxima fase
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Editor File Selector Header */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setActiveTab('html')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'html' ? 'bg-neutral-800 text-white border border-neutral-700/80' : 'text-neutral-500 hover:text-neutral-300'}`}
+          >
+            index.html
+          </button>
+          <button
+            onClick={() => setActiveTab('css')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'css' ? 'bg-neutral-800 text-white border border-neutral-700/80' : 'text-neutral-500 hover:text-neutral-300'}`}
+          >
+            style.css
+          </button>
+          <button
+            onClick={() => setActiveTab('js')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'js' ? 'bg-neutral-800 text-white border border-neutral-700/80' : 'text-neutral-500 hover:text-neutral-300'}`}
+          >
+            script.js
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={restoreDefault}
+            className="text-neutral-500 hover:text-white transition-colors flex items-center gap-0.5 text-[10px]"
+          >
+            <RotateCcw className="w-2.5 h-2.5" /> Resetar
+          </button>
+          <span className="text-neutral-700 font-mono">|</span>
+          <button 
+            onClick={copyCode} 
+            className="text-neutral-500 hover:text-white transition-colors flex items-center gap-1 text-[10px]"
+          >
+            {copied ? (
+              <>
+                <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Copiado!
+              </>
+            ) : (
+              <>
+                <Copy className="w-3 h-3" /> Copiar Aba
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Helper Element Injections for HTML Tab */}
+      {activeTab === 'html' && (
+        <div className="flex flex-wrap items-center gap-1 pb-2 border-b border-neutral-800/50 mb-2">
+          <span className="text-[10px] font-mono text-neutral-500 mr-1.5">Injetar tag rápido:</span>
+          <button onClick={() => injectTag('button')} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-1.5 py-0.5 rounded text-[10px] font-mono border border-neutral-700/30">
+            &lt;button&gt;
+          </button>
+          <button onClick={() => injectTag('p')} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-1.5 py-0.5 rounded text-[10px] font-mono border border-neutral-700/30">
+            &lt;p&gt;
+          </button>
+          <button onClick={() => injectTag('img')} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-1.5 py-0.5 rounded text-[10px] font-mono border border-neutral-700/30">
+            &lt;img&gt;
+          </button>
+          <button onClick={() => injectTag('input')} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-1.5 py-0.5 rounded text-[10px] font-mono border border-neutral-700/30">
+            &lt;input&gt;
+          </button>
+          <button onClick={() => injectTag('div')} className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-1.5 py-0.5 rounded text-[10px] font-mono border border-neutral-700/30">
+            &lt;div&gt;
+          </button>
+        </div>
+      )}
+
+      {/* Code Editor */}
+      <div className="relative">
+        <textarea
+          value={currentEditorCode()}
+          onChange={(e) => handleTextareaChange(e.target.value)}
+          className="w-full h-44 bg-neutral-950 border border-neutral-800 rounded-lg p-3 font-mono text-xs text-indigo-300 focus:outline-none focus:border-indigo-500/50 resize-none leading-relaxed"
+          placeholder={`Escreva seu código ${activeTab.toUpperCase()} aqui...`}
+        />
+      </div>
+
+      {/* Live Preview Area */}
+      <div className="mt-4">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-neutral-950 border border-neutral-800 border-b-0 rounded-t-lg text-xs text-neutral-500">
+          <span className="flex items-center gap-1.5">
+            <Monitor className="w-3.5 h-3.5" /> Visualização do Navegador
+          </span>
+          <button 
+            onClick={() => setPreviewKey(prev => prev + 1)}
+            className="hover:text-white transition-colors text-[10px] flex items-center gap-1"
+          >
+            <RefreshCw className="w-3" /> Atualizar
+          </button>
+        </div>
+        <div className="h-32 bg-white rounded-b-lg border border-neutral-800 overflow-hidden">
+          <iframe
+            key={previewKey}
+            title="Preview"
+            srcDoc={combinedSrcDoc}
+            className="w-full h-full bg-white"
+            sandbox="allow-scripts"
+          />
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="mt-4 flex flex-col sm:flex-row gap-2">
+        <button
+          onClick={handleAskMentor}
+          className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-xs transition-colors"
+        >
+          <Sparkles className="w-3.5 h-3.5" /> Enviar para Análise do Mentor
+        </button>
+      </div>
+
+      {/* VS Code Help Advice conforming to rules */}
+      <div className="mt-4 p-3 rounded-lg bg-neutral-950/40 border border-neutral-800/80 flex items-start gap-2.5">
+        <HelpCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+        <div className="text-[10px] text-neutral-500 leading-relaxed">
+          <span className="font-semibold text-neutral-300">Como testar no VS Code real:</span> Crie um arquivo no computador chamado <code className="text-indigo-400 bg-neutral-900 px-1 rounded">index.html</code>, cole toda a sua estrutura de código, clique com o botão direito nele no VS Code e selecione <span className="text-neutral-300">"Open with Live Server"</span> para ver no seu navegador padrão!
+        </div>
+      </div>
+
+      {/* Professor Visual & Productivity Extensions Setup */}
+      <div className="mt-2.5 p-3.5 rounded-xl border border-indigo-500/10 bg-indigo-950/10">
+        <div className="flex items-center gap-1.5 mb-2">
+          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+          <span className="text-xs font-bold text-white uppercase tracking-wider">Setup Visual Recomendado do Professor</span>
+        </div>
+        <div className="grid grid-cols-1 gap-2">
+          <div className="p-2 rounded bg-neutral-950/60 border border-neutral-800/50">
+            <div className="flex items-center justify-between gap-1 mb-1">
+              <span className="text-[11px] font-bold text-indigo-300">🧛‍♂️ Dracula Theme / Dracula Soft</span>
+              <span className="text-[9px] bg-purple-500/15 text-purple-300 font-bold px-1.5 py-0.5 rounded uppercase font-sans">Cores & Olhos</span>
+            </div>
+            <p className="text-[10px] text-neutral-400 leading-normal">
+              Facilita identificar tags abertas, tags órfãs (não fechadas) e classes CSS através de cores vibrantes e limpas. Protege muito sua vista no cansaço da madrugada.
+            </p>
+          </div>
+          <div className="p-2 rounded bg-neutral-950/60 border border-neutral-800/50">
+            <div className="flex items-center justify-between gap-1 mb-1">
+              <span className="text-[11px] font-bold text-indigo-300">✨ Prettier - Code Formatter</span>
+              <span className="text-[9px] bg-indigo-500/15 text-indigo-300 font-bold px-1.5 py-0.5 rounded uppercase font-sans">Formatação</span>
+            </div>
+            <p className="text-[10px] text-neutral-400 leading-normal">
+              Alinha e indenta tags aninhadas de forma 100% automática ao salvar. Evita o cansaço visual de organizar espaços e traços manualmente.
+            </p>
+          </div>
+          <div className="p-2 rounded bg-neutral-950/60 border border-neutral-800/50">
+            <div className="flex items-center justify-between gap-1 mb-1">
+              <span className="text-[11px] font-bold text-indigo-300">🛸 Agente Antigravity (IA Copiloto)</span>
+              <span className="text-[9px] bg-emerald-500/15 text-emerald-300 font-bold px-1.5 py-0.5 rounded uppercase font-sans">Você está usando agora!</span>
+            </div>
+            <p className="text-[10px] text-neutral-400 leading-normal">
+              Nosso motor cognitivo integrado aqui no navegador. Ele analisa, explica, sugere micro-desafios práticos e treina sua mente de forma ativa, sem que você fique dependente de códigos prontos do ChatGPT.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  );
+}

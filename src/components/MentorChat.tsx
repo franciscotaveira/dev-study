@@ -122,18 +122,21 @@ export default function MentorChat({ activeTopic, isNightMode }: { activeTopic: 
     setLoading(false);
   };
 
-  const sendMessage = async () => {
-    if (!input.trim()) return;
+  const sendMessage = async (customText?: string) => {
+    const textToSend = typeof customText === 'string' ? customText : input;
+    if (!textToSend.trim()) return;
 
     if (isDictating && recognitionRef.current) {
       recognitionRef.current.stop();
       setIsDictating(false);
     }
 
-    const newMsg: Message = { role: 'user', parts: [{ text: input }] };
+    const newMsg: Message = { role: 'user', parts: [{ text: textToSend }] };
     const updatedMessages = [...messages, newMsg];
     setMessages(updatedMessages);
-    setInput('');
+    if (!customText || typeof customText !== 'string') {
+      setInput('');
+    }
     setLoading(true);
 
     try {
@@ -153,6 +156,18 @@ export default function MentorChat({ activeTopic, isNightMode }: { activeTopic: 
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    const handleSendEvent = (e: any) => {
+      if (e.detail) {
+        sendMessage(e.detail);
+      }
+    };
+    window.addEventListener('send-to-mentor' as any, handleSendEvent);
+    return () => {
+      window.removeEventListener('send-to-mentor' as any, handleSendEvent);
+    };
+  }, [messages, useHighThinking, useSearch]);
 
   const startVoice = async () => {
     try {
@@ -312,7 +327,7 @@ export default function MentorChat({ activeTopic, isNightMode }: { activeTopic: 
                   {isDictating ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
                 </button>
                 <button
-                  onClick={sendMessage}
+                  onClick={() => sendMessage()}
                   disabled={loading || !input.trim()}
                   className={cn("absolute right-2 top-2 p-1.5 text-white rounded-lg transition-colors", isNightMode ? "bg-neutral-900 hover:bg-neutral-800 disabled:bg-neutral-950 text-neutral-500" : "bg-indigo-500 hover:bg-indigo-600 disabled:bg-neutral-700")}
                 >

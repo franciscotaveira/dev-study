@@ -7,11 +7,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { curriculum } from './data/curriculum';
-import { ChevronRight, ChevronDown, CheckCircle2, Circle, Target, Play, Pause, RotateCcw, Moon, Sun, Zap, Loader2, BrainCircuit, Trophy, Wind, X, Flame } from 'lucide-react';
+import { curriculum as defaultCurriculum } from './data/curriculum';
+import { ChevronRight, ChevronDown, CheckCircle2, Circle, Target, Play, Pause, RotateCcw, Moon, Sun, Zap, Loader2, BrainCircuit, Trophy, Wind, X, Flame, Settings, HelpCircle, Users, Copy, Clock, Award, ClipboardList } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import MentorChat from './components/MentorChat';
+import CodeSandbox from './components/CodeSandbox';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -35,6 +36,23 @@ export default function App() {
   const [expandedModules, setExpandedModules] = useState<number[]>([0, 1]);
   const [isNightMode, setIsNightMode] = useState(false);
   
+  const [customCurriculum, setCustomCurriculum] = useStickyState<typeof defaultCurriculum | null>(null, 'senai-custom-curriculum');
+  const curriculum = customCurriculum || defaultCurriculum;
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [activeRightTab, setActiveRightTab] = useState<'chat' | 'sandbox'>('chat');
+  const [hasCopiedLink, setHasCopiedLink] = useState(false);
+  const [curriculumJson, setCurriculumJson] = useState("");
+  const [jsonError, setJsonError] = useState("");
+  const [sctecGoals, setSctecGoals] = useStickyState<Record<string, boolean>>({
+    'assistir-videos': false,
+    'desafio-extra': false,
+    'avaliacao-regular': false,
+    'prazo-20-dias': false
+  }, 'senai-sctec-goals');
+
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [reviewQuestion, setReviewQuestion] = useState("");
   const [isReviewLoading, setIsReviewLoading] = useState(false);
@@ -48,6 +66,7 @@ export default function App() {
   const [lastStudyDate, setLastStudyDate] = useStickyState<string | null>(null, 'senai-last-study-date');
 
   const [dailyFocusDataRaw, setDailyFocusDataRaw] = useStickyState<Record<string, number>>({}, 'senai-daily-focus-raw');
+  const [missionTime, setMissionTime] = useStickyState<Record<string, number>>({}, 'senai-mission-time-data');
 
   const [timeLeft, setTimeLeft] = useStickyState<number>(5 * 60, 'senai-time-left');
   const [isActive, setIsActive] = useStickyState<boolean>(false, 'senai-is-active');
@@ -102,6 +121,13 @@ export default function App() {
         ...prev,
         [today]: (prev[today] || 0) + 5
       }));
+
+      if (activeItem) {
+        setMissionTime(prev => ({
+          ...prev,
+          [activeItem]: (prev[activeItem] || 0) + 5
+        }));
+      }
 
       confetti({
         particleCount: 80,
@@ -176,6 +202,39 @@ export default function App() {
     setTimeLeft(5 * 60);
   };
 
+  const copyInviteLink = () => {
+    // Copia um link com a missão atual ou genérico
+    const url = new URL(window.location.href);
+    if (activeItem) {
+      url.searchParams.set('missao', encodeURIComponent(activeItem));
+    }
+    navigator.clipboard.writeText(url.toString());
+    setHasCopiedLink(true);
+    setTimeout(() => setHasCopiedLink(false), 3000);
+  };
+
+  const openSettings = () => {
+    setCurriculumJson(JSON.stringify(curriculum, null, 2));
+    setJsonError("");
+    setIsSettingsOpen(true);
+  };
+
+  const saveCurriculum = () => {
+    try {
+      const parsed = JSON.parse(curriculumJson);
+      if (!Array.isArray(parsed)) throw new Error("A trilha deve ser um array JSON.");
+      parsed.forEach(mod => {
+        if (!mod.title || !Array.isArray(mod.items)) {
+          throw new Error("Cada módulo deve ter 'title' (string) e 'items' (array de strings).");
+        }
+      });
+      setCustomCurriculum(parsed);
+      setIsSettingsOpen(false);
+    } catch (e) {
+      setJsonError((e as Error).message);
+    }
+  };
+
   const startQuickReview = async () => {
     if (!activeItem) return;
     setIsReviewLoading(true);
@@ -209,6 +268,22 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Check for shared mission link
+    const searchParams = new URLSearchParams(window.location.search);
+    const sharedMission = searchParams.get('missao');
+    if (sharedMission) {
+      const decodedMissao = decodeURIComponent(sharedMission);
+      const allValidItems = curriculum.flatMap(c => c.items);
+      if (allValidItems.includes(decodedMissao)) {
+        setActiveItem(decodedMissao);
+      }
+      
+      // Clean up URL without reloading
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('missao');
+      window.history.replaceState({}, '', newUrl.toString());
+    }
+
     // Cleanup invalid data from previous curriculums
     const allValidItems = curriculum.flatMap(c => c.items);
     
@@ -222,6 +297,13 @@ export default function App() {
       return prev;
     });
   }, []);
+
+  const averageMissionTime = useMemo(() => {
+    const completedWithTime = completedItems.filter(item => missionTime[item] && missionTime[item] > 0);
+    if (completedWithTime.length === 0) return 0;
+    const totalMinutes = completedWithTime.reduce((sum, item) => sum + missionTime[item], 0);
+    return Math.round(totalMinutes / completedWithTime.length);
+  }, [completedItems, missionTime]);
 
   const totalItems = curriculum.reduce((acc, curr) => acc + curr.items.length, 0);
   const progressPercent = totalItems > 0 ? Math.round((completedItems.length / totalItems) * 100) : 0;
@@ -315,6 +397,225 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* Invite Friends Modal */}
+      <AnimatePresence>
+        {isInviteOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsInviteOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className={cn("relative w-full max-w-md p-6 md:p-8 rounded-2xl border shadow-2xl overflow-hidden flex flex-col", isNightMode ? "bg-neutral-900 border-neutral-800" : "bg-neutral-950 border-neutral-800")}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={cn("p-2 rounded-lg border", isNightMode ? "bg-neutral-800 border-neutral-700" : "bg-indigo-500/10 border-indigo-500/20")}>
+                    <Users className={cn("w-5 h-5", isNightMode ? "text-neutral-400" : "text-indigo-400")} />
+                  </div>
+                  <h2 className="text-xl md:text-2xl font-bold text-white mb-0">Squad de Foco</h2>
+                </div>
+                <button onClick={() => setIsInviteOpen(false)} className="text-neutral-500 hover:text-neutral-300 transition-colors">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <p className={cn("text-sm leading-relaxed mb-6", isNightMode ? "text-neutral-500" : "text-neutral-400")}>
+                Sabia que estudar no mesmo horário que um amigo ou colega (mesmo mutados no Discord) aumenta o foco em até 200%? Isso se chama <strong>Body Doubling</strong>.
+                Convide alguém para a missão de hoje compartilhando o link abaixo:
+              </p>
+              
+              <div className={cn("flex flex-col gap-3 p-4 rounded-xl mb-6 border", isNightMode ? "bg-neutral-800/50 border-neutral-700/50" : "bg-neutral-900/50 border-neutral-800")}>
+                {activeItem && (
+                  <div className="text-xs uppercase tracking-wider font-bold text-indigo-400 mb-1">
+                    Missão Atual Selecionada:
+                    <div className="text-white normal-case tracking-normal font-normal mt-1 text-sm bg-neutral-950/50 p-2 rounded-md border border-neutral-800/50">
+                      {activeItem}
+                    </div>
+                  </div>
+                )}
+                <button
+                  onClick={copyInviteLink}
+                  className={cn("w-full flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-colors border", 
+                    hasCopiedLink 
+                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                      : (isNightMode ? "bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border-neutral-700" : "bg-indigo-500 hover:bg-indigo-600 text-white border-indigo-500")
+                  )}
+                >
+                  {hasCopiedLink ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" /> Link Copiado!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4" /> Copiar Link de Convite
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="flex justify-end shrink-0">
+                <button 
+                  onClick={() => setIsInviteOpen(false)}
+                  className="px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-neutral-800 text-neutral-400 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Help / How to Use Modal */}
+      <AnimatePresence>
+        {isHelpOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsHelpOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className={cn("relative w-full max-w-3xl p-6 md:p-8 rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[85vh]", isNightMode ? "bg-neutral-900 border-neutral-800" : "bg-neutral-950 border-neutral-800")}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-xl md:text-2xl font-bold text-white mb-1">Como dominar suas madrugadas de código</h2>
+                  <p className={cn("text-sm", isNightMode ? "text-neutral-500" : "text-neutral-400")}>Manual rápido de sobrevivência e estudos para o SENAI</p>
+                </div>
+                <button onClick={() => setIsHelpOpen(false)} className="text-neutral-500 hover:text-neutral-300 transition-colors">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="overflow-y-auto pr-2 pb-4 space-y-4 custom-scrollbar">
+                <div className={cn("p-5 rounded-xl border", isNightMode ? "bg-neutral-800/30 border-neutral-700/50" : "bg-neutral-900/40 border-neutral-800")}>
+                  <h3 className="font-bold text-white text-base mb-2 flex items-center gap-2">
+                    <Moon className="w-4 h-4 text-indigo-400" />
+                    1. Organizando sua Madrugada
+                  </h3>
+                  <p className={cn("text-sm leading-relaxed", isNightMode ? "text-neutral-400" : "text-neutral-300")}>
+                    Seu cérebro está cansado. Esqueça "estudar por horas". Use a **Regra dos 5 Minutos**: inicie o timer e comprometa-se a focar apenas 5 minutos no problema. O botão <Moon className="w-3 h-3 inline text-indigo-400"/> ativa o foco extremo para minimizar brilho e distrações.
+                  </p>
+                </div>
+
+                <div className={cn("p-5 rounded-xl border", isNightMode ? "bg-neutral-800/30 border-neutral-700/50" : "bg-neutral-900/40 border-neutral-800")}>
+                  <h3 className="font-bold text-white text-base mb-2 flex items-center gap-2">
+                    <Target className="w-4 h-4 text-orange-400" />
+                    2. Estratégia de Micro-desafios
+                  </h3>
+                  <p className={cn("text-sm leading-relaxed", isNightMode ? "text-neutral-400" : "text-neutral-300")}>
+                    Não tente "aprender Banco de Dados" de uma vez. Defina micro-desafios. Uma missão grande deve ser quebrada no campo **"Qual o próximo checkpoint pequeno?"**. Resolva um pequeno problema de cada vez para gerar micro-vitórias antes do sono bater.
+                  </p>
+                </div>
+
+                <div className={cn("p-5 rounded-xl border", isNightMode ? "bg-neutral-800/30 border-neutral-700/50" : "bg-neutral-900/40 border-neutral-800")}>
+                  <h3 className="font-bold text-white text-base mb-2 flex items-center gap-2">
+                    <BrainCircuit className="w-4 h-4 text-emerald-400" />
+                    3. Utilizando o Mentor Inteligente
+                  </h3>
+                  <p className={cn("text-sm leading-relaxed", isNightMode ? "text-neutral-400" : "text-neutral-300")}>
+                    Não peça a ele para fazer o código por você; peça para explicar o que você não entende, ou te ensinar através de conceitos rápidos, analogias ou trechos mínimos de código. Clique no botão de Revisão Rápida para consolidar em 1 minuto o módulo da trilha. Use o Chat Lateral ativamente!
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-neutral-800/50 flex justify-end shrink-0 mt-2">
+                <button 
+                  onClick={() => setIsHelpOpen(false)}
+                  className="px-6 py-2.5 rounded-xl text-sm font-medium bg-indigo-500 hover:bg-indigo-600 text-white transition-colors"
+                >
+                  Entendi, bora codar!
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsSettingsOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className={cn("relative w-full max-w-2xl p-6 rounded-2xl border shadow-2xl overflow-hidden flex flex-col max-h-[85vh]", isNightMode ? "bg-neutral-900 border-neutral-800" : "bg-neutral-950 border-neutral-800")}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white">Configurar Trilha Personalizada</h2>
+                <button onClick={() => setIsSettingsOpen(false)} className="text-neutral-500 hover:text-neutral-300">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className={cn("text-sm mb-4", isNightMode ? "text-neutral-500" : "text-neutral-400")}>
+                Substitua a trilha padrão colando seu próprio JSON. 
+                Sua progressão será salva localmente, mas incompatibilidades de nomes podem resetar missões.
+              </p>
+              
+              {jsonError && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-sm">
+                  {jsonError}
+                </div>
+              )}
+
+              <textarea 
+                value={curriculumJson}
+                onChange={(e) => setCurriculumJson(e.target.value)}
+                spellCheck={false}
+                className={cn("w-full flex-grow rounded-xl p-4 text-xs font-mono focus:outline-none mb-6 resize-none transition-colors", isNightMode ? "bg-black border border-neutral-800 text-neutral-300 focus:border-neutral-700" : "bg-neutral-900 border border-neutral-800 text-neutral-200 focus:border-indigo-500/50")}
+              />
+
+              <div className="flex gap-3 justify-end shrink-0">
+                <button 
+                  onClick={() => {
+                    if (window.confirm('Tem certeza que deseja restaurar a trilha padrão do SENAI? Seu progresso original não suportado neste layout será esquecido.')) {
+                      setCustomCurriculum(null);
+                      setIsSettingsOpen(false);
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-neutral-400 hover:text-red-400 hover:bg-neutral-800 transition-colors mr-auto"
+                >
+                  Restaurar Original
+                </button>
+                <button 
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-neutral-400 hover:text-neutral-300 hover:bg-neutral-800 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={saveCurriculum}
+                  className="px-6 py-2 rounded-xl text-sm font-medium bg-indigo-500 hover:bg-indigo-600 text-white transition-colors"
+                >
+                  Salvar Trilha
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Ergonomics Tip Popup */}
       <AnimatePresence>
         {showErgonomicsTip && (
@@ -362,13 +663,36 @@ export default function App() {
           <div>
               <div className="flex items-start justify-between mb-2">
                 <h1 className="text-3xl font-medium tracking-tight text-white">Trilha de Estudos</h1>
-                <button
-                  onClick={() => setIsNightMode(true)}
-                  className="p-3 rounded-full border border-neutral-800 bg-neutral-900/50 text-neutral-400 hover:text-indigo-400 hover:border-indigo-500/30 transition-colors"
-                  title="Ativar Modo Madrugada (Foco Extremo)"
-                >
-                  <Moon className="w-5 h-5" />
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setIsInviteOpen(true)}
+                    className="p-3 rounded-full border border-neutral-800 bg-neutral-900/50 text-neutral-400 hover:text-indigo-400 hover:border-indigo-500/30 transition-colors"
+                    title="Convidar Squad (Body Doubling)"
+                  >
+                    <Users className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setIsHelpOpen(true)}
+                    className="p-3 rounded-full border border-neutral-800 bg-neutral-900/50 text-neutral-400 hover:text-indigo-400 hover:border-indigo-500/30 transition-colors"
+                    title="Como usar o sistema"
+                  >
+                    <HelpCircle className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={openSettings}
+                    className="p-3 rounded-full border border-neutral-800 bg-neutral-900/50 text-neutral-400 hover:text-indigo-400 hover:border-indigo-500/30 transition-colors"
+                    title="Configurar Trilha Personalizada"
+                  >
+                    <Settings className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setIsNightMode(true)}
+                    className="p-3 rounded-full border border-neutral-800 bg-neutral-900/50 text-neutral-400 hover:text-indigo-400 hover:border-indigo-500/30 transition-colors"
+                    title="Ativar Modo Madrugada (Foco Extremo)"
+                  >
+                    <Moon className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
               <p className="text-neutral-500 mb-6">Desenvolvimento de Software SENAI. Foco noturno.</p>
               
@@ -707,8 +1031,159 @@ export default function App() {
               </div>
             </div>
 
-            {/* AI Mentor Chat & Voice */}
-            <MentorChat activeTopic={activeItem} isNightMode={isNightMode} />
+            {/* Produtividade / Average Time */}
+            <div className={cn("rounded-2xl border p-6 transition-colors", isNightMode ? "border-neutral-900 bg-neutral-950/40 p-6" : "border-neutral-800 bg-neutral-900/20")}>
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="w-5 h-5 text-indigo-400" />
+                <h2 className="font-medium text-white">Resumo de Produtividade</h2>
+              </div>
+              <div className={cn("text-xs mb-3 leading-relaxed", isNightMode ? "text-neutral-500" : "text-neutral-400")}>
+                Média de tempo gasto nas missões que você já concluiu nesta trilha.
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className={cn("text-3xl font-bold tracking-tight", isNightMode ? "text-neutral-300" : "text-white")}>
+                  {averageMissionTime > 0 ? averageMissionTime : '--'}
+                </span>
+                <span className={cn("text-sm", isNightMode ? "text-neutral-600" : "text-neutral-500")}>min / missão</span>
+              </div>
+            </div>
+
+            {/* Metas SCTEC / Carreira Tech Checklist */}
+            <div className={cn("rounded-2xl border p-6 transition-colors", isNightMode ? "border-neutral-900 bg-neutral-950/40" : "border-neutral-800 bg-neutral-900/20")}>
+              <div className="flex items-center gap-2 mb-3">
+                <Award className="w-5 h-5 text-emerald-400" />
+                <h2 className="font-medium text-white">Carreira Tech (SCTEC)</h2>
+              </div>
+              <p className={cn("text-xs mb-4 leading-relaxed", isNightMode ? "text-neutral-500" : "text-neutral-400")}>
+                Acompanhe os requisitos obrigatórios do edital do SENAI para aprovação e certificação automática:
+              </p>
+              
+              <div className="space-y-3">
+                <button 
+                  onClick={() => setSctecGoals(prev => ({ ...prev, 'assistir-videos': !prev['assistir-videos'] }))}
+                  className="flex items-start gap-3 w-full text-left transition-colors group"
+                >
+                  <div className="mt-0.5 shrink-0 transition-transform group-active:scale-95">
+                    {sctecGoals['assistir-videos'] ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 fill-emerald-400/10" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-neutral-600 group-hover:text-indigo-400" />
+                    )}
+                  </div>
+                  <div>
+                    <div className={cn("text-xs font-semibold", sctecGoals['assistir-videos'] ? "text-neutral-500 line-through" : "text-neutral-200")}>
+                      Assistir Videoaulas Completas
+                    </div>
+                    <div className="text-[10px] text-neutral-500 leading-normal mt-0.5">
+                      Sem pular partes e sem trocar de aba para pontuar corretamente.
+                    </div>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => setSctecGoals(prev => ({ ...prev, 'desafio-extra': !prev['desafio-extra'] }))}
+                  className="flex items-start gap-3 w-full text-left transition-colors group"
+                >
+                  <div className="mt-0.5 shrink-0 transition-transform group-active:scale-95">
+                    {sctecGoals['desafio-extra'] ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 fill-emerald-400/10" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-neutral-600 group-hover:text-indigo-400" />
+                    )}
+                  </div>
+                  <div>
+                    <div className={cn("text-xs font-semibold", sctecGoals['desafio-extra'] ? "text-neutral-500 line-through" : "text-neutral-200")}>
+                      Desafio Extra (Opcional)
+                    </div>
+                    <div className="text-[10px] text-neutral-500 leading-normal mt-0.5">
+                      Deve ser concluído e enviado antes de submeter a avaliação final.
+                    </div>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => setSctecGoals(prev => ({ ...prev, 'avaliacao-regular': !prev['avaliacao-regular'] }))}
+                  className="flex items-start gap-3 w-full text-left transition-colors group"
+                >
+                  <div className="mt-0.5 shrink-0 transition-transform group-active:scale-95">
+                    {sctecGoals['avaliacao-regular'] ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 fill-emerald-400/10" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-neutral-600 group-hover:text-indigo-400" />
+                    )}
+                  </div>
+                  <div>
+                    <div className={cn("text-xs font-semibold", sctecGoals['avaliacao-regular'] ? "text-neutral-500 line-through" : "text-neutral-200")}>
+                      Avaliação Regular (Nota ≥ 7)
+                    </div>
+                    <div className="text-[10px] text-neutral-500 leading-normal mt-0.5">
+                      Questões objetivas. Até 5 tentativas disponíveis no portal.
+                    </div>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => setSctecGoals(prev => ({ ...prev, 'prazo-20-dias': !prev['prazo-20-dias'] }))}
+                  className="flex items-start gap-3 w-full text-left transition-colors group"
+                >
+                  <div className="mt-0.5 shrink-0 transition-transform group-active:scale-95">
+                    {sctecGoals['prazo-20-dias'] ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 fill-emerald-400/10" />
+                    ) : (
+                      <Circle className="w-4 h-4 text-neutral-600 group-hover:text-indigo-400" />
+                    )}
+                  </div>
+                  <div>
+                    <div className={cn("text-xs font-semibold", sctecGoals['prazo-20-dias'] ? "text-neutral-500 line-through" : "text-neutral-200")}>
+                      Prazo Limite: 20 Dias
+                    </div>
+                    <div className="text-[10px] text-neutral-500 leading-normal mt-0.5">
+                      Acompanhe sua data limite de 20 dias a partir da matrícula.
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* Abas do Mentor & Laboratório */}
+            <div className="flex border-b border-neutral-800 bg-neutral-900/10 rounded-t-xl overflow-hidden">
+              <button
+                onClick={() => setActiveRightTab('chat')}
+                className={cn(
+                  "flex-1 text-center py-3 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all",
+                  activeRightTab === 'chat'
+                    ? "text-indigo-400 border-indigo-500 bg-neutral-900/30 font-bold"
+                    : "text-neutral-500 border-transparent hover:text-neutral-300"
+                )}
+              >
+                Chat do Mentor
+              </button>
+              <button
+                onClick={() => setActiveRightTab('sandbox')}
+                className={cn(
+                  "flex-1 text-center py-3 text-xs font-semibold uppercase tracking-wider border-b-2 transition-all",
+                  activeRightTab === 'sandbox'
+                    ? "text-indigo-400 border-indigo-500 bg-neutral-900/30 font-bold"
+                    : "text-neutral-500 border-transparent hover:text-neutral-300"
+                )}
+              >
+                Laboratório Prático (HTML)
+              </button>
+            </div>
+
+            {activeRightTab === 'chat' ? (
+              <MentorChat activeTopic={activeItem} isNightMode={isNightMode} />
+            ) : (
+              <CodeSandbox
+                isNightMode={isNightMode}
+                onSendToMentor={(codeMessage) => {
+                  setActiveRightTab('chat');
+                  setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent('send-to-mentor', { detail: codeMessage }));
+                  }, 200);
+                }}
+              />
+            )}
 
           </div>
         </div>
