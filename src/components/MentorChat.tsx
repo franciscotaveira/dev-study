@@ -250,9 +250,16 @@ export default function MentorChat({ activeTopic, isNightMode, isAutoFormatEnabl
         sendMessage(e.detail);
       }
     };
+    const handleStudyTopicEvent = (e: any) => {
+      if (e.detail) {
+        sendMessage(`Quero estudar o tópico: "${e.detail}". Siga suas regras de Mentor (ensine em passos curtos, code snippet, e um micro-desafio).`);
+      }
+    };
     window.addEventListener('send-to-mentor' as any, handleSendEvent);
+    window.addEventListener('study-topic' as any, handleStudyTopicEvent);
     return () => {
       window.removeEventListener('send-to-mentor' as any, handleSendEvent);
+      window.removeEventListener('study-topic' as any, handleStudyTopicEvent);
     };
   }, [messages, useHighThinking, useSearch]);
 

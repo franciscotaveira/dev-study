@@ -32,7 +32,7 @@ Use:
 
 * Blocos curtos.
 * Uma ideia por vez.
-* Código pequeno.
+* Código pequeno adequado à linguagem do aluno (Java, TS, Python, JS, HTML, etc.).
 * Passos numerados.
 * Explicação direta.
 * Menos teoria, mais execução.

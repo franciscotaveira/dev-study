@@ -26,7 +26,12 @@ import {
   Wand2,
   Info,
   Maximize,
-  Minimize
+  Minimize,
+  Volume2,
+  VolumeX,
+  Keyboard,
+  ArrowLeft,
+  ArrowRight
 } from "lucide-react";
 
 import { clsx, type ClassValue } from 'clsx';
@@ -529,7 +534,75 @@ export default function CodeSandbox({
   >("idle");
 
   const [isGuideMode, setIsGuideMode] = useState(false);
+  const [isZenMode, setIsZenMode] = useState(true);
+  const [showTeoria, setShowTeoria] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isSoundMuted, setIsSoundMuted] = useState(() => {
+    try {
+      return localStorage.getItem("lab_sound_muted") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const playSound = (type: 'success' | 'error' | 'click') => {
+    if (isSoundMuted) return;
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!audioCtx) return;
+
+      if (type === 'click') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.08);
+      } else if (type === 'success') {
+        const notes = [261.63, 329.63, 392.00, 523.25]; // C E G C retro level up!
+        notes.forEach((freq, idx) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.1);
+          gain.gain.setValueAtTime(0.08, audioCtx.currentTime + idx * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.1 + 0.25);
+          osc.start(audioCtx.currentTime + idx * 0.1);
+          osc.stop(audioCtx.currentTime + idx * 0.1 + 0.3);
+        });
+      } else if (type === 'error') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.25);
+      }
+    } catch (err) {
+      console.warn("Som indisponível:", err);
+    }
+  };
+
+  const toggleMuteSound = () => {
+    setIsSoundMuted((prev) => {
+      const newVal = !prev;
+      try {
+        localStorage.setItem("lab_sound_muted", String(newVal));
+      } catch {}
+      return newVal;
+    });
+  };
   
   const formatCode = () => {
      if (activeTab === 'html') {
@@ -579,6 +652,11 @@ export default function CodeSandbox({
     setPreviewKey((prev) => prev + 1);
   }, [activeTrackIdx, activeLessonIdx]);
 
+  // Play click sound on interactive navigation changes
+  useEffect(() => {
+    playSound('click');
+  }, [activeTab, activeTrackIdx, activeLessonIdx]);
+
   // Compute test specifications in real time
   const specsChecked = useMemo(() => {
     return activeLesson.specs.map((spec) => ({
@@ -596,6 +674,7 @@ export default function CodeSandbox({
     if (allSpecsPassed) {
       setValidationState("success");
       setLessonFinished(true);
+      playSound("success");
 
       if (onSolvedBug) {
         const lessonName = (activeLesson?.name || "").toLowerCase();
@@ -611,8 +690,92 @@ export default function CodeSandbox({
       }
     } else {
       setValidationState("error");
+      playSound("error");
     }
   };
+
+  // Global keyboard shortcuts for reduced clicks & extreme usability
+  useEffect(() => {
+    const handleShortcut = (e: KeyboardEvent) => {
+      // 1. Check for Command/Control + Enter to verify code
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        handleVerifyCode();
+        return;
+      }
+
+      // Check Alt combinations
+      if (e.altKey) {
+        const key = e.key.toLowerCase();
+        
+        switch (key) {
+          case "1":
+          case "h":
+            e.preventDefault();
+            setActiveTab("html");
+            break;
+          case "2":
+          case "c":
+            e.preventDefault();
+            setActiveTab("css");
+            break;
+          case "3":
+          case "j":
+            e.preventDefault();
+            setActiveTab("js");
+            break;
+          case "v":
+            e.preventDefault();
+            handleVerifyCode();
+            break;
+          case "i":
+          case "g":
+            e.preventDefault();
+            toggleGuideMode();
+            break;
+          case "n":
+            e.preventDefault();
+            if (lessonFinished) {
+              handleNextLevel();
+            } else if (activeLessonIdx < activeTrack.lessons.length - 1) {
+              setActiveLessonIdx(prev => prev + 1);
+            }
+            break;
+          case "p":
+            e.preventDefault();
+            if (activeLessonIdx > 0) {
+              setActiveLessonIdx(prev => prev - 1);
+            }
+            break;
+          case "r":
+            e.preventDefault();
+            restoreDefault();
+            break;
+          case "f":
+            e.preventDefault();
+            formatCode();
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleShortcut);
+    return () => {
+      window.removeEventListener("keydown", handleShortcut);
+    };
+  }, [
+    activeLessonIdx,
+    activeTrack.lessons.length,
+    activeTrackIdx,
+    allSpecsPassed,
+    lessonFinished,
+    activeTab,
+    htmlCode,
+    cssCode,
+    jsCode
+  ]);
 
   const combinedSrcDoc = useMemo(() => {
     return `
@@ -795,35 +958,84 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
     return hints.slice(0, 3);
   }, [htmlCode, cssCode, jsCode, activeTab]);
 
-  const injectTag = (tagType: string) => {
-    if (activeTab !== "html") {
-      setActiveTab("html");
+  const injectSnippet = (snippetType: string) => {
+    playSound('click');
+    if (activeTab === "html") {
+      let inlineSnippet = "";
+      switch (snippetType) {
+        case "button":
+          inlineSnippet = '\n<button id="meu-novo-botao">Clique Aqui</button>';
+          break;
+        case "p":
+          inlineSnippet = "\n<p>Adicionei um novo parágrafo explicativo!</p>";
+          break;
+        case "img":
+          inlineSnippet = '\n<img src="https://picsum.photos/250/150" alt="Imagem de Teste" />';
+          break;
+        case "input":
+          inlineSnippet = '\n<input type="text" placeholder="Escreva algo prático..." />';
+          break;
+        case "div":
+          inlineSnippet = '\n<div style="padding: 10px; border: 1px dashed #6366f1;">\n  <h3>Nova Seção</h3>\n</div>';
+          break;
+        case "list":
+          inlineSnippet = '\n<ul>\n  <li>Primeiro Item</li>\n  <li>Segundo Item</li>\n</ul>';
+          break;
+        case "form":
+          inlineSnippet = '\n<form id="meu-formulario">\n  <label>Nome:</label>\n  <input type="text" />\n  <button type="submit">Enviar</button>\n</form>';
+          break;
+        default:
+          break;
+      }
+      setHtmlCode((prev) => prev + inlineSnippet);
+    } else if (activeTab === "css") {
+      let inlineSnippet = "";
+      switch (snippetType) {
+        case "flex":
+          inlineSnippet = '\n/* Layout Centralizado Flexbox */\n.container {\n  display: flex;\n  justify-content: center;\n  align-items: center;\n  gap: 10px;\n}';
+          break;
+        case "rounded":
+          inlineSnippet = '\n/* Botão Minimalista Moderno */\n.btn {\n  border-radius: 8px;\n  padding: 10px 20px;\n  border: none;\n  cursor: pointer;\n}';
+          break;
+        case "glow":
+          inlineSnippet = '\n/* Brilho Neon TDAH */\n.neon-glow {\n  box-shadow: 0 0 15px rgba(99, 102, 241, 0.6);\n  border: 1.5px solid #6366f1;\n}';
+          break;
+        case "gradient":
+          inlineSnippet = '\n/* Texto Gradiente */\n.texto-gradiente {\n  background: linear-gradient(135deg, #6366f1, #ec4899);\n  -webkit-background-clip: text;\n  -webkit-text-fill-color: transparent;\n}';
+          break;
+        case "transition":
+          inlineSnippet = '\n/* Efeito Suave ao Passar Mouse */\n.suave {\n  transition: all 0.25s ease-in-out;\n}\n.suave:hover {\n  transform: scale(1.05);\n}';
+          break;
+        default:
+          break;
+      }
+      setCssCode((prev) => prev + inlineSnippet);
+    } else if (activeTab === "js") {
+      let inlineSnippet = "";
+      switch (snippetType) {
+        case "log":
+          inlineSnippet = '\nconsole.log("Laboratório madrugador! Valor:", );';
+          break;
+        case "click":
+          inlineSnippet = '\nconst btn = document.getElementById("btn-click");\nbtn.addEventListener("click", () => {\n  console.log("Botão clicado pelo aluno!");\n});';
+          break;
+        case "selector":
+          inlineSnippet = '\nconst elemento = document.querySelector("#titulo");';
+          break;
+        case "text":
+          inlineSnippet = '\nelemento.textContent = "Excelente progresso!";';
+          break;
+        case "style":
+          inlineSnippet = '\nelemento.style.color = "#818cf8";';
+          break;
+          case "timeout":
+          inlineSnippet = '\nsetTimeout(() => {\n  console.log("1 segundo se passou!");\n}, 1000);';
+          break;
+        default:
+          break;
+      }
+      setJsCode((prev) => prev + inlineSnippet);
     }
-
-    let inlineTag = "";
-    switch (tagType) {
-      case "button":
-        inlineTag = '\n<button id="meu-novo-botao">Clique Aqui</button>';
-        break;
-      case "p":
-        inlineTag = "\n<p>Adicionei um novo parágrafo explicativo!</p>";
-        break;
-      case "img":
-        inlineTag =
-          '\n<img src="https://picsum.photos/250/150" alt="Imagem de Teste" />';
-        break;
-      case "input":
-        inlineTag =
-          '\n<input type="text" placeholder="Escreva algo prático..." />';
-        break;
-      case "div":
-        inlineTag =
-          '\n<div style="padding: 10px; border: 1px dashed #6366f1;">\n  <h3>Nova Seção</h3>\n</div>';
-        break;
-      default:
-        break;
-    }
-    setHtmlCode((prev) => prev + inlineTag);
   };
 
   const restoreDefault = () => {
@@ -856,6 +1068,26 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
             >
               {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
             </button>
+            <button 
+              onClick={toggleMuteSound}
+              className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-300 transition-colors"
+              title={isSoundMuted ? "Ativar Sons de Dopamina 🔊" : "Silenciar Laboratório 🔇"}
+            >
+              {isSoundMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+            <button 
+              onClick={() => { playSound('click'); setIsZenMode(!isZenMode); }}
+              className={cn(
+                "px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-all flex items-center gap-1",
+                isZenMode 
+                  ? "bg-indigo-500/25 border-indigo-500/40 text-indigo-200 shadow-sm" 
+                  : "bg-neutral-900 border-neutral-800 text-neutral-400 hover:text-neutral-200"
+              )}
+              title={isZenMode ? "Desativar modo minimalista para ler analogia e teoria" : "Ativar modo minimalista (ocultar barras e teoria duplicada)"}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+              <span>{isZenMode ? "Modo Zen Ativo" : "Reduzir Carga (Zen)"}</span>
+            </button>
           </h3>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
@@ -875,47 +1107,74 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
         </div>
       </div>
 
-      <p className="text-xs text-neutral-400 mb-4 leading-relaxed">
+      <p className="text-xs text-neutral-400 mb-2 leading-relaxed">
         Não precisa alternar para o VS Code agora! Selecione as missões abaixo
         para escrever seu código com testes automatizados em tempo real.
       </p>
 
+      {/* Sleek Gamified Progress Bar */}
+      {!isZenMode && (() => {
+        const completedLessons = activeLessonIdx;
+        const totalLessons = activeTrack.lessons.length;
+        const progressPercentage = Math.round((completedLessons / totalLessons) * 100);
+        return (
+          <div className="mb-4 bg-neutral-950/50 p-2.5 rounded-xl border border-neutral-800/40">
+            <div className="flex justify-between items-center mb-1.5 text-[10px]">
+              <span className="font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-1">
+                <Award className="w-3.5 h-3.5 text-indigo-400" /> Progresso na Trilha: {activeTrack.name}
+              </span>
+              <span className="font-mono text-indigo-400 font-bold bg-indigo-500/10 px-1.5 py-0.5 rounded">
+                {activeLessonIdx} / {totalLessons} Missões ({progressPercentage}%)
+              </span>
+            </div>
+            <div className="w-full bg-neutral-900 rounded-full h-1.5 overflow-hidden border border-neutral-800/60">
+              <div 
+                className="bg-indigo-500 h-full rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${progressPercentage}%` }}
+              />
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Level Roadmap Map Inside Current Track */}
-      <div className="bg-neutral-950/80 p-3 rounded-xl mb-4 border border-neutral-800/80 flex items-center gap-3 overflow-x-auto scrollbar-thin">
-        <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider shrink-0">
-          Etapas:
-        </span>
-        <div className="flex items-center gap-2 overflow-x-auto flex-nowrap scrollbar-none py-0.5">
-          {activeTrack.lessons.map((les, idx) => {
-            const isSelected = activeLessonIdx === idx;
-            const isBug = les.isBugChallenge;
-            return (
-              <button
-                key={les.id}
-                onClick={() => setActiveLessonIdx(idx)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
-                  isSelected
-                    ? isBug
-                      ? "bg-rose-500/10 border-rose-500 text-rose-300 animate-pulse"
-                      : "bg-indigo-500/10 border-indigo-500 text-indigo-300"
-                    : isBug
-                      ? "bg-rose-950/30 hover:bg-rose-950/50 text-rose-400 border-rose-900/30"
-                      : "bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border-neutral-800/80"
-                }`}
-              >
-                {isBug ? (
-                  <span className="flex items-center gap-1">🐛 Bug Master</span>
-                ) : (
-                  <span>Nível {idx + 1}</span>
-                )}
-                <span className="hidden sm:inline font-normal opacity-90">
-                  - {les.name}
-                </span>
-              </button>
-            );
-          })}
+      {!isZenMode && (
+        <div className="bg-neutral-950/80 p-3 rounded-xl mb-4 border border-neutral-800/80 flex items-center gap-3 overflow-x-auto scrollbar-thin">
+          <span className="text-[10px] font-bold text-neutral-500 uppercase tracking-wider shrink-0">
+            Etapas:
+          </span>
+          <div className="flex items-center gap-2 overflow-x-auto flex-nowrap scrollbar-none py-0.5">
+            {activeTrack.lessons.map((les, idx) => {
+              const isSelected = activeLessonIdx === idx;
+              const isBug = les.isBugChallenge;
+              return (
+                <button
+                  key={les.id}
+                  onClick={() => setActiveLessonIdx(idx)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
+                    isSelected
+                      ? isBug
+                        ? "bg-rose-500/10 border-rose-500 text-rose-300 animate-pulse"
+                        : "bg-indigo-500/10 border-indigo-500 text-indigo-300"
+                      : isBug
+                        ? "bg-rose-950/30 hover:bg-rose-950/50 text-rose-400 border-rose-900/30"
+                        : "bg-neutral-900 hover:bg-neutral-800 text-neutral-400 border-neutral-800/80"
+                  }`}
+                >
+                  {isBug ? (
+                    <span className="flex items-center gap-1">🐛 Bug Master</span>
+                  ) : (
+                    <span>Nível {idx + 1}</span>
+                  )}
+                  <span className="hidden sm:inline font-normal opacity-90">
+                    - {les.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Lesson Details & Instructions - Redesigned focusing on TDAH principles */}
       <div
@@ -954,35 +1213,51 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 border-t border-indigo-500/10 text-[11px] leading-relaxed text-neutral-400">
-          <div>
-            <span className="font-bold text-indigo-300">💡 O que é:</span>{" "}
-            {activeLesson.whatIs}
+        {(!isZenMode || showTeoria) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 border-t border-indigo-500/10 text-[11px] leading-relaxed text-neutral-400">
+            <div>
+              <span className="font-bold text-indigo-300">💡 O que é:</span>{" "}
+              {activeLesson.whatIs}
+            </div>
+            <div>
+              <span className="font-bold text-indigo-300">
+                ✨ Analogia do Mundo Real:
+              </span>{" "}
+              {activeLesson.analogy}
+            </div>
           </div>
-          <div>
-            <span className="font-bold text-indigo-300">
-              ✨ Analogia do Mundo Real:
-            </span>{" "}
-            {activeLesson.analogy}
-          </div>
-        </div>
+        )}
 
-        <div className="p-2.5 rounded-lg bg-neutral-950 text-[11px] font-mono border border-neutral-800/80">
-          <div className="flex items-center justify-between mb-1 text-[10px] text-neutral-500">
-            <span>Código Mínimo Recomendado</span>
+        {(!isZenMode || showTeoria) && (
+          <div className="p-2.5 rounded-lg bg-neutral-950 text-[11px] font-mono border border-neutral-800/80">
+            <div className="flex items-center justify-between mb-1 text-[10px] text-neutral-500">
+              <span>Código Mínimo Recomendado</span>
+              <button
+                onClick={() =>
+                  navigator.clipboard.writeText(activeLesson.minCode)
+                }
+                className="text-neutral-400 hover:text-white text-[9px] flex items-center gap-0.5"
+              >
+                <Copy className="w-2.5 h-2.5" /> Copiar Exemplo
+              </button>
+            </div>
+            <pre className="text-indigo-300 whitespace-pre scrollbar-none overflow-x-auto">
+              {activeLesson.minCode}
+            </pre>
+          </div>
+        )}
+
+        {isZenMode && (
+          <div className="pt-2 flex items-center justify-between border-t border-neutral-850/60">
             <button
-              onClick={() =>
-                navigator.clipboard.writeText(activeLesson.minCode)
-              }
-              className="text-neutral-400 hover:text-white text-[9px] flex items-center gap-0.5"
+              onClick={() => { playSound('click'); setShowTeoria(!showTeoria); }}
+              className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1 transition-colors"
             >
-              <Copy className="w-2.5 h-2.5" /> Copiar Exemplo
+              <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+              <span>{showTeoria ? "Ocultar Ajuda Teórica & Exemplo 🧠" : "Expandir Teoria, Analogia & Código Mínimo 💡"}</span>
             </button>
           </div>
-          <pre className="text-indigo-300 whitespace-pre scrollbar-none overflow-x-auto">
-            {activeLesson.minCode}
-          </pre>
-        </div>
+        )}
       </div>
 
       {/* Interactive Specifications / Automated Tests checklist */}
@@ -1055,28 +1330,69 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
             </button>
           </div>
         )}
+
+        {/* Quick Level Navigation to avoid scrolling up */}
+        <div className="mt-3.5 pt-2.5 border-t border-neutral-800/60 flex items-center justify-between gap-2 text-[11px] text-neutral-400">
+          <button
+            onClick={() => {
+              if (activeLessonIdx > 0) {
+                playSound('click');
+                setActiveLessonIdx(prev => prev - 1);
+              }
+            }}
+            disabled={activeLessonIdx === 0}
+            className="flex items-center gap-1 hover:text-white transition-colors disabled:opacity-40 disabled:hover:text-neutral-400"
+            title="Voltar ao Nível Anterior (Alt + P)"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Anterior <kbd className="text-[9px] px-1 bg-neutral-900 border border-neutral-800 rounded font-mono">Alt+P</kbd>
+          </button>
+          
+          <span className="text-[10px] text-neutral-500 font-bold">
+            Missão {activeLessonIdx + 1} de {activeTrack.lessons.length}
+          </span>
+
+          <button
+            onClick={() => {
+              if (activeLessonIdx < activeTrack.lessons.length - 1) {
+                playSound('click');
+                setActiveLessonIdx(prev => prev + 1);
+              }
+            }}
+            disabled={activeLessonIdx === activeTrack.lessons.length - 1}
+            className="flex items-center gap-1 hover:text-white transition-colors disabled:opacity-40 disabled:hover:text-neutral-400"
+            title="Avançar ao Próximo Nível (Alt + N)"
+          >
+            Próximo <kbd className="text-[9px] px-1 bg-neutral-900 border border-neutral-800 rounded font-mono">Alt+N</kbd> <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Editor File Selector Header */}
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <button
-            onClick={() => setActiveTab("html")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "html" ? "bg-neutral-800 text-white border border-neutral-700/80" : "text-neutral-500 hover:text-neutral-300"}`}
+            onClick={() => { playSound('click'); setActiveTab("html"); }}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${activeTab === "html" ? "bg-neutral-800 text-white border border-neutral-700/80" : "text-neutral-500 hover:text-neutral-300"}`}
+            title="Aba HTML (Alt + 1 ou Alt + H)"
           >
             index.html
+            <kbd className="text-[8px] opacity-75 font-mono px-1 py-0.2 bg-neutral-900 rounded border border-neutral-700">Alt+1</kbd>
           </button>
           <button
-            onClick={() => setActiveTab("css")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "css" ? "bg-neutral-800 text-white border border-neutral-700/80" : "text-neutral-500 hover:text-neutral-300"}`}
+            onClick={() => { playSound('click'); setActiveTab("css"); }}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${activeTab === "css" ? "bg-neutral-800 text-white border border-neutral-700/80" : "text-neutral-500 hover:text-neutral-300"}`}
+            title="Aba CSS (Alt + 2 ou Alt + C)"
           >
             style.css
+            <kbd className="text-[8px] opacity-75 font-mono px-1 py-0.2 bg-neutral-900 rounded border border-neutral-700">Alt+2</kbd>
           </button>
           <button
-            onClick={() => setActiveTab("js")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === "js" ? "bg-neutral-800 text-white border border-neutral-700/80" : "text-neutral-500 hover:text-neutral-300"}`}
+            onClick={() => { playSound('click'); setActiveTab("js"); }}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${activeTab === "js" ? "bg-neutral-800 text-white border border-neutral-700/80" : "text-neutral-500 hover:text-neutral-300"}`}
+            title="Aba Javascript (Alt + 3 ou Alt + J)"
           >
             script.js
+            <kbd className="text-[8px] opacity-75 font-mono px-1 py-0.2 bg-neutral-900 rounded border border-neutral-700">Alt+3</kbd>
           </button>
         </div>
 
@@ -1121,44 +1437,150 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
         </div>
       </div>
 
-      {/* Helper Element Injections for HTML Tab */}
-      {activeTab === "html" && (
-        <div className="flex flex-wrap items-center gap-1 pb-2 border-b border-neutral-800/50 mb-2">
-          <span className="text-[10px] font-mono text-neutral-500 mr-1.5">
-            Injetar tag rápido:
-          </span>
-          <button
-            onClick={() => injectTag("button")}
-            className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-1.5 py-0.5 rounded text-[10px] font-mono border border-neutral-700/30"
-          >
-            &lt;button&gt;
-          </button>
-          <button
-            onClick={() => injectTag("p")}
-            className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-1.5 py-0.5 rounded text-[10px] font-mono border border-neutral-700/30"
-          >
-            &lt;p&gt;
-          </button>
-          <button
-            onClick={() => injectTag("img")}
-            className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-1.5 py-0.5 rounded text-[10px] font-mono border border-neutral-700/30"
-          >
-            &lt;img&gt;
-          </button>
-          <button
-            onClick={() => injectTag("input")}
-            className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-1.5 py-0.5 rounded text-[10px] font-mono border border-neutral-700/30"
-          >
-            &lt;input&gt;
-          </button>
-          <button
-            onClick={() => injectTag("div")}
-            className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 px-1.5 py-0.5 rounded text-[10px] font-mono border border-neutral-700/30"
-          >
-            &lt;div&gt;
-          </button>
-        </div>
-      )}
+      {/* Helper Element Injections for Active Tab (HTML, CSS or JS) */}
+      <div className="flex flex-wrap items-center gap-1.5 pb-2.5 border-b border-neutral-800/60 mb-3 animate-in fade-in duration-200">
+        <span className="text-[10px] font-bold text-neutral-400 mr-1.5 uppercase tracking-wider flex items-center gap-1">
+          <Zap className="w-3 h-3 text-amber-400" /> Inserção Automática ({activeTab.toUpperCase()}):
+        </span>
+        {activeTab === "html" && (
+          <>
+            <button
+              onClick={() => injectSnippet("button")}
+              className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded text-[10px] font-mono border border-indigo-500/20 transition-all"
+              title="Cria um botão simples com ID"
+            >
+              &lt;button&gt;
+            </button>
+            <button
+              onClick={() => injectSnippet("p")}
+              className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded text-[10px] font-mono border border-indigo-500/20 transition-all"
+              title="Cria um parágrafo de texto descritivo"
+            >
+              &lt;p&gt;
+            </button>
+            <button
+              onClick={() => injectSnippet("img")}
+              className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded text-[10px] font-mono border border-indigo-500/20 transition-all"
+              title="Cria uma tag de imagem com src e alt"
+            >
+              &lt;img&gt;
+            </button>
+            <button
+              onClick={() => injectSnippet("input")}
+              className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded text-[10px] font-mono border border-indigo-500/20 transition-all"
+              title="Cria uma caixa de entrada de texto"
+            >
+              &lt;input&gt;
+            </button>
+            <button
+              onClick={() => injectSnippet("div")}
+              className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded text-[10px] font-mono border border-indigo-500/20 transition-all"
+              title="Cria uma caixa divisória estilizada"
+            >
+              &lt;div&gt;
+            </button>
+            <button
+              onClick={() => injectSnippet("list")}
+              className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded text-[10px] font-mono border border-indigo-500/20 transition-all"
+              title="Cria uma lista não ordenada com itens"
+            >
+              &lt;ul&gt; &lt;li&gt;
+            </button>
+            <button
+              onClick={() => injectSnippet("form")}
+              className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded text-[10px] font-mono border border-indigo-500/20 transition-all"
+              title="Cria uma estrutura de formulário"
+            >
+              &lt;form&gt;
+            </button>
+          </>
+        )}
+        {activeTab === "css" && (
+          <>
+            <button
+              onClick={() => injectSnippet("flex")}
+              className="bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 px-2 py-1 rounded text-[10px] font-mono border border-teal-500/20 transition-all"
+              title="Escreve propriedades flexbox para centralização"
+            >
+              Centralizar Div
+            </button>
+            <button
+              onClick={() => injectSnippet("rounded")}
+              className="bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 px-2 py-1 rounded text-[10px] font-mono border border-teal-500/20 transition-all"
+              title="Escreve design moderno de botão com cantos arredondados"
+            >
+              Botão Moderno
+            </button>
+            <button
+              onClick={() => injectSnippet("glow")}
+              className="bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 px-2 py-1 rounded text-[10px] font-mono border border-teal-500/20 transition-all"
+              title="Escreve um brilho neon violeta"
+            >
+              Brilho Neon
+            </button>
+            <button
+              onClick={() => injectSnippet("gradient")}
+              className="bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 px-2 py-1 rounded text-[10px] font-mono border border-teal-500/20 transition-all"
+              title="Escreve um efeito de texto em degradê"
+            >
+              Texto Gradiente
+            </button>
+            <button
+              onClick={() => injectSnippet("transition")}
+              className="bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 px-2 py-1 rounded text-[10px] font-mono border border-teal-500/20 transition-all"
+              title="Escreve efeito hover com escala e transição suave"
+            >
+              Efeito Suave
+            </button>
+          </>
+        )}
+        {activeTab === "js" && (
+          <>
+            <button
+              onClick={() => injectSnippet("log")}
+              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 px-2 py-1 rounded text-[10px] font-mono border border-amber-500/20 transition-all"
+              title="Escreve um debug no console"
+            >
+              console.log
+            </button>
+            <button
+              onClick={() => injectSnippet("click")}
+              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 px-2 py-1 rounded text-[10px] font-mono border border-amber-500/20 transition-all"
+              title="Escreve um escutador de clique"
+            >
+              Escutar Clique
+            </button>
+            <button
+              onClick={() => injectSnippet("selector")}
+              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 px-2 py-1 rounded text-[10px] font-mono border border-amber-500/20 transition-all"
+              title="Seleciona elemento pela ID ou classe"
+            >
+              document.querySelector
+            </button>
+            <button
+              onClick={() => injectSnippet("text")}
+              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 px-2 py-1 rounded text-[10px] font-mono border border-amber-500/20 transition-all"
+              title="Muda o texto interno de um elemento"
+            >
+              Mudar Texto
+            </button>
+            <button
+              onClick={() => injectSnippet("style")}
+              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 px-2 py-1 rounded text-[10px] font-mono border border-amber-500/20 transition-all"
+              title="Muda a cor de estilo inline"
+            >
+              Mudar Cor inline
+            </button>
+            <button
+              onClick={() => injectSnippet("timeout")}
+              className="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 px-2 py-1 rounded text-[10px] font-mono border border-amber-500/20 transition-all"
+              title="Executa ação após delay de tempo"
+            >
+              Delay (setTimeout)
+            </button>
+          </>
+        )}
+      </div>
 
       {/* Code Editor */}
       <div className="relative flex-1 flex flex-col min-h-[176px]">
@@ -1302,6 +1724,36 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
               forma ativa, sem que você fique dependente de códigos prontos do
               ChatGPT.
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Keyboard Shortcuts Helper Panel at the bottom of Sandbox */}
+      <div className="mt-3.5 p-3 rounded-xl bg-neutral-950/40 border border-neutral-800/80 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-widest flex items-center gap-1.5">
+            <Keyboard className="w-3.5 h-3.5 text-indigo-400 animate-pulse" /> Atalhos de Sobrevivência TDAH (Teclado)
+          </span>
+          <span className="text-[9px] text-indigo-400/90 font-mono bg-indigo-500/10 px-1.5 py-0.5 rounded font-semibold">
+            Sem mouse, máxima concentração!
+          </span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 mt-2.5 text-[10px] text-neutral-400 font-mono">
+          <div className="flex items-center gap-1.5 bg-neutral-900/60 p-1 rounded border border-neutral-800/50">
+            <kbd className="bg-neutral-950 border border-neutral-800 px-1 py-0.5 rounded text-indigo-400 text-[9px] font-bold">Ctrl + Enter</kbd>
+            <span>Verificar Código</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-neutral-900/60 p-1 rounded border border-neutral-800/50">
+            <kbd className="bg-neutral-950 border border-neutral-800 px-1 py-0.5 rounded text-indigo-400 text-[9px] font-bold">Alt + 1 / 2 / 3</kbd>
+            <span>Abas index/style/script</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-neutral-900/60 p-1 rounded border border-neutral-800/50">
+            <kbd className="bg-neutral-950 border border-neutral-800 px-1 py-0.5 rounded text-indigo-400 text-[9px] font-bold">Alt + N / P</kbd>
+            <span>Nível Próximo / Anterior</span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-neutral-900/60 p-1 rounded border border-neutral-800/50">
+            <kbd className="bg-neutral-950 border border-neutral-800 px-1 py-0.5 rounded text-indigo-400 text-[9px] font-bold">Alt + Q</kbd>
+            <span>Chat ⇆ Laboratório</span>
           </div>
         </div>
       </div>

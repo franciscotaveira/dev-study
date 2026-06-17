@@ -227,6 +227,121 @@ export const curriculums: Record<string, { id: string, name: string, description
         ]
       }
     ]
+  },
+  typescript: {
+    id: "typescript",
+    name: "TypeScript Full-Stack",
+    description: "Trilha focada em dominar a linguagem moderna do mercado: Typescript, React moderno, Next.js e Node.js.",
+    modules: [
+      {
+        title: "1ª Fase: Fundamentos do TypeScript",
+        items: [
+          "Bem-vindo ao TypeScript: O Super-Poder do JavaScript",
+          "Tipagens Estáticas vs Dinâmicas",
+          "Tipos Primitivos, Arrays e Objetos",
+          "Interfaces vs Types",
+          "Enums e Generics Básicos"
+        ]
+      },
+      {
+        title: "2ª Fase: TS no Front-End (React)",
+        items: [
+          "Configurando React com TypeScript (Vite/Next)",
+          "Tipando Props e Componentes",
+          "Tipando Hooks (useState, useEffect, refs)",
+          "Tipando Context API",
+          "Integração com Ferramentas Modernas (Tailwind)"
+        ]
+      },
+      {
+        title: "3ª Fase: TS no Back-End (Node)",
+        items: [
+          "Configurando Node + TypeScript",
+          "Construindo uma API com Express + TS",
+          "Validação de Dados Estrita com Zod",
+          "Prisma ORM com TypeScript",
+          "Tratamento de Erros e Middlewares Tipados"
+        ]
+      }
+    ]
+  },
+  java: {
+    id: "java",
+    name: "Back-End Elite: Java + Spring",
+    description: "Trilha pura para Engenharia de Software. Java, Orientação a Objetos, Spring Boot e Microsserviços.",
+    modules: [
+      {
+        title: "1ª Fase: Core Java & POO",
+        items: [
+          "Sintaxe Java e a JVM",
+          "Orientação a Objetos: Classes, Objetos e Métodos",
+          "Herança, Polimorfismo e Interfaces",
+          "Tratamento de Exceções",
+          "Coleções (List, Set, Map) e Streams API"
+        ]
+      },
+      {
+        title: "2ª Fase: Banco de Dados Relacional",
+        items: [
+          "SQL Fundamental e Normalização",
+          "Conectando Java ao Banco via JDBC",
+          "Introdução a ORM e JPA/Hibernate",
+          "Mapeamento de Entidades e Relacionamentos"
+        ]
+      },
+      {
+        title: "3ª Fase: Spring Boot API",
+        items: [
+          "A Magia do Spring Boot: Injeção de Dependência",
+          "Construindo RESTful APIs",
+          "Spring Data JPA para Banco de Dados",
+          "Segurança com Spring Security e JWT",
+          "Arquitetura de Microsserviços Básica"
+        ]
+      }
+    ]
+  },
+  ai_engineering: {
+    id: "ai_engineering",
+    name: "Engenharia de IA Aplicada",
+    description: "Integre LLMs, RAG e Agentes Autônomos em sistemas reais. Metodologia focada em microvitórias e construção prática.",
+    modules: [
+      {
+        title: "1ª Fase: Caixa de Ferramentas e Fundamentos",
+        items: [
+          "Fundamentos de IA e Visão Geral de LLMs",
+          "IA no dia a dia: Ferramentas para UX & UI",
+          "Acelerando Infraestrutura: IA para DevOps",
+          "Acelerando Processos: IA para Gestão de Projetos"
+        ]
+      },
+      {
+        title: "2ª Fase: Orquestração e Contexto",
+        items: [
+          "Chamadas de APIs Generativas na Prática",
+          "Mestrado em Prompt Engineering e Few-Shot",
+          "Dominando o Model Context Protocol (MCP)",
+          "Arquitetura de Sistemas Híbridos com IA"
+        ]
+      },
+      {
+        title: "3ª Fase: Autonomia e Especialização",
+        items: [
+          "Desenvolvimento de Agentes Autônomos",
+          "Processamento de Dados RAG Avançado",
+          "Técnicas de Fine-Tuning e Otimização de Modelos",
+          "Segurança, Governança e Ética em IA"
+        ]
+      },
+      {
+        title: "Fase Final: O Engenheiro de Elite",
+        items: [
+          "Deploy de Soluções com LLMs",
+          "Projeto Integrador – Capstone Project",
+          "Mentoria: Carreira e Entrevistas de Alta Renda"
+        ]
+      }
+    ]
   }
 };
 

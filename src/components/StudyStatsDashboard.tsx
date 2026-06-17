@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, YAxis } from 'recharts';
-import { Clock, Code2, Moon, Sun, Sunrise, BugOff, Calendar } from 'lucide-react';
+import { Clock, Code2, Moon, Sun, Sunrise, BugOff, Calendar, Lock, Unlock, Trophy, Award, Sparkles, ShieldCheck, Palette, Braces } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import Markdown from 'react-markdown';
@@ -66,14 +66,29 @@ export function StudyStatsDashboard({
     return s.includes('banco') || s.includes('sql') || s.includes('nosql') || s.includes('crud') || s.includes('autentica') || s.includes('segurança') || s.includes('boss fight');
   }).length;
 
-  const totalMissionsCount = htmlMissions + cssMissions + jsMissions + nodeMissions + sqlMissions;
+  const tsMissions = completedItems.filter(item => {
+    const s = item.toLowerCase();
+    return s.includes('typescript') || s.includes('ts ') || s.includes('react') || s.includes('next');
+  }).length;
+
+  const javaMissions = completedItems.filter(item => {
+    const s = item.toLowerCase();
+    return s.includes('java') || s.includes('spring') || s.includes('jdbc') || s.includes('jpa');
+  }).length;
+
+  const aiMissions = completedItems.filter(item => {
+    const s = item.toLowerCase();
+    return s.includes('ia') || s.includes('llm') || s.includes('prompt') || s.includes('agente') || s.includes('mcp');
+  }).length;
+
+  const totalMissionsCount = htmlMissions + cssMissions + jsMissions + nodeMissions + sqlMissions + tsMissions + javaMissions + aiMissions;
 
   const radarData = [
-    { subject: 'HTML', A: Math.min(100, htmlMissions * 15), fullMark: 100 },
-    { subject: 'CSS', A: Math.min(100, cssMissions * 15), fullMark: 100 },
-    { subject: 'JS', A: Math.min(100, jsMissions * 15), fullMark: 100 },
-    { subject: 'Node', A: Math.min(100, nodeMissions * 15), fullMark: 100 },
-    { subject: 'Banco', A: Math.min(100, sqlMissions * 15), fullMark: 100 },
+    { subject: 'Front', A: Math.min(100, (htmlMissions + cssMissions + jsMissions) * 15), fullMark: 100 },
+    { subject: 'Back', A: Math.min(100, (nodeMissions + sqlMissions) * 15), fullMark: 100 },
+    { subject: 'TS/React', A: Math.min(100, tsMissions * 15), fullMark: 100 },
+    { subject: 'Java', A: Math.min(100, javaMissions * 15), fullMark: 100 },
+    { subject: 'IA', A: Math.min(100, aiMissions * 15), fullMark: 100 },
   ];
 
   const currentCombatErrors = combatErrors || { 'Tags Órfãs': 0, 'Sintaxe JS': 0, 'Tipografia CSS': 0, 'Indentação': 0 };
@@ -134,6 +149,64 @@ export function StudyStatsDashboard({
     }
     return days;
   }, [dailyFocusData]);
+
+  const annualFocusData = useMemo(() => {
+    const today = new Date();
+    // Generate exactly 53 weeks * 7 days = 371 days to align Sunday row perfectly
+    const totalDays = 53 * 7;
+    const oldestDate = new Date(today);
+    oldestDate.setDate(today.getDate() - totalDays);
+    
+    // Adjust oldestDate to the preceding Sunday
+    const startOffset = oldestDate.getDay();
+    const startDate = new Date(oldestDate);
+    startDate.setDate(oldestDate.getDate() - startOffset);
+
+    const grid = [];
+    const current = new Date(startDate);
+    const nowStr = today.toISOString().split('T')[0];
+
+    for (let i = 0; i < totalDays; i++) {
+      const dateString = current.toISOString().split('T')[0];
+      const minutes = dailyFocusData?.[dateString] || 0;
+      grid.push({
+        date: dateString,
+        minutes: minutes,
+        metGoal: minutes >= 25,
+        isToday: dateString === nowStr,
+        dayOfWeek: current.getDay(),
+        month: current.toLocaleString('pt-BR', { month: 'short' }),
+      });
+      current.setDate(current.getDate() + 1);
+    }
+    return grid;
+  }, [dailyFocusData]);
+
+  const annualWeeks = useMemo(() => {
+    const weeks = [];
+    for (let i = 0; i < annualFocusData.length; i += 7) {
+      weeks.push(annualFocusData.slice(i, i + 7));
+    }
+    return weeks;
+  }, [annualFocusData]);
+
+  const getHeatmapColor = (minutes: number) => {
+    if (minutes === 0) {
+      return isNightMode 
+        ? "bg-neutral-900/60 border border-neutral-800/40 hover:bg-neutral-800" 
+        : "bg-neutral-200/50 border border-neutral-300/40 hover:bg-neutral-300";
+    }
+    if (minutes < 15) {
+      return "bg-emerald-950/40 border border-emerald-900/30 text-emerald-400 hover:scale-110";
+    }
+    if (minutes < 25) {
+      return "bg-emerald-800/50 border border-emerald-700/40 text-emerald-300 hover:scale-110";
+    }
+    if (minutes < 60) {
+      return "bg-emerald-500/80 border border-emerald-400/45 text-white hover:scale-110";
+    }
+    return "bg-emerald-400 border border-emerald-300/50 text-white shadow-[0_0_8px_rgba(52,211,153,0.4)] hover:scale-110";
+  };
 
   const currentStreak = useMemo(() => {
     let streak = 0;
@@ -284,17 +357,201 @@ export function StudyStatsDashboard({
 
     </div>
 
-    {/* Study Streak Calendar */}
+    {/* Painel do Caçador de Bugs - Gamificação de Erros */}
+    <div className={cn("rounded-xl p-5 border mb-5 mt-1 animate-in fade-in slide-in-from-bottom-2 duration-300", isNightMode ? "bg-neutral-950 border-neutral-900" : "bg-neutral-900/40 border-neutral-800/50")}>
+       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+          <div className="flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-indigo-400" />
+            <div>
+              <h3 className="font-bold text-neutral-200 text-sm flex items-center gap-1.5">
+                Domínio Caçador de Bugs <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+              </h3>
+              <p className="text-[10px] text-neutral-500 font-mono">Conserte desafios práticos e desbloqueie medalhas exclusivas</p>
+            </div>
+          </div>
+          {(() => {
+            const tagsPassed = (combatErrors['Tags Órfãs'] || 0) > 0;
+            const jsPassed = (combatErrors['Sintaxe JS'] || 0) > 0;
+            const cssPassed = (combatErrors['Tipografia CSS'] || 0) > 0;
+            const indentPassed = (combatErrors['Indentação'] || 0) > 0;
+            const unlockedCount = [tagsPassed, jsPassed, cssPassed, indentPassed].filter(Boolean).length;
+            const isLendario = unlockedCount === 4;
+
+            return (
+              <div className="flex items-center gap-2 bg-neutral-950 border border-neutral-800 px-3 py-1 rounded-full select-none">
+                <span className="text-[9px] uppercase font-bold tracking-wider text-neutral-400 font-mono">Medalhas:</span>
+                <span className="font-mono text-[11px] font-bold text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-full">
+                  {unlockedCount} de 4
+                </span>
+                {isLendario && (
+                  <span className="text-xs animate-bounce" title="Você é lendário!">👑</span>
+                )}
+              </div>
+            );
+          })()}
+       </div>
+
+       {(() => {
+         const tagsCount = combatErrors['Tags Órfãs'] || 0;
+         const jsCount = combatErrors['Sintaxe JS'] || 0;
+         const cssCount = combatErrors['Tipografia CSS'] || 0;
+         const indentCount = combatErrors['Indentação'] || 0;
+
+         const listBadges = [
+           {
+             id: 'tags',
+             title: 'Domador de Tags',
+             description: 'Escreva markups limpos, fechando e aninhando tags HTML sem órfãs.',
+             errorName: 'Tags Órfãs',
+             count: tagsCount,
+             unlocked: tagsCount > 0,
+             icon: <Code2 className="w-5 h-5" />,
+             color: 'text-sky-400',
+             bgBorder: 'border-sky-500/30',
+             shadowColor: 'hover:shadow-sky-500/5',
+             glowBg: 'from-sky-500/10 to-transparent'
+           },
+           {
+             id: 'js',
+             title: 'Mestre da Sintaxe',
+             description: 'Implemente lógica em JS com escuta e manipulação fluída do DOM.',
+             errorName: 'Sintaxe JS',
+             count: jsCount,
+             unlocked: jsCount > 0,
+             icon: <Braces className="w-5 h-5" />,
+             color: 'text-amber-400',
+             bgBorder: 'border-amber-500/30',
+             shadowColor: 'hover:shadow-amber-500/5',
+             glowBg: 'from-amber-500/10 to-transparent'
+           },
+           {
+             id: 'css',
+             title: 'Alquimista do Design',
+             description: 'Defina classes CSS dominando fontes, cores e estruturas visuais rápidas.',
+             errorName: 'Tipografia CSS',
+             count: cssCount,
+             unlocked: cssCount > 0,
+             icon: <Palette className="w-5 h-5" />,
+             color: 'text-pink-400',
+             bgBorder: 'border-pink-500/30',
+             shadowColor: 'hover:shadow-pink-500/5',
+             glowBg: 'from-pink-500/10 to-transparent'
+           },
+           {
+             id: 'indent',
+             title: 'Zen do Código Limpo',
+             description: 'Formate com espaçamento consistente e indentação impecável.',
+             errorName: 'Indentação',
+             count: indentCount,
+             unlocked: indentCount > 0,
+             icon: <BugOff className="w-5 h-5" />,
+             color: 'text-emerald-400',
+             bgBorder: 'border-emerald-500/30',
+             shadowColor: 'hover:shadow-emerald-500/5',
+             glowBg: 'from-emerald-500/10 to-transparent'
+           }
+         ];
+
+         const allUnlocked = listBadges.every(b => b.unlocked);
+
+         return (
+           <div className="space-y-4">
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+               {listBadges.map((badge) => (
+                 <div
+                   key={badge.id}
+                   className={cn(
+                     "relative rounded-xl border p-3 overflow-hidden transition-all duration-300 flex flex-col justify-between group",
+                     badge.unlocked 
+                       ? `bg-neutral-900/60 border-neutral-800 hover:border-neutral-700 shadow-md ${badge.shadowColor}` 
+                       : "bg-neutral-950/20 border-neutral-900/80 opacity-50"
+                   )}
+                 >
+                   {badge.unlocked && (
+                     <div className={cn("absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r opacity-[0.03] pointer-events-none group-hover:opacity-10 transition-opacity duration-300", badge.glowBg)} />
+                   )}
+
+                   <div className="flex items-center justify-between gap-2.5">
+                     <div className={cn(
+                       "p-2 rounded-lg border transition-all duration-300 shrink-0",
+                       badge.unlocked 
+                         ? `bg-neutral-950/70 border-neutral-800 ${badge.color}` 
+                         : "bg-neutral-900/30 border-neutral-900/50 text-neutral-705"
+                     )}>
+                       {badge.icon}
+                     </div>
+
+                     {badge.unlocked ? (
+                       <span className="flex items-center gap-1 text-[8px] font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded uppercase tracking-wider font-mono">
+                         <Unlock className="w-2 h-2" /> Desbloqueado x{badge.count}
+                       </span>
+                     ) : (
+                       <span className="flex items-center gap-1 text-[8px] font-bold text-neutral-600 bg-neutral-900/40 border border-neutral-900/50 px-1.5 py-0.5 rounded uppercase tracking-wider font-mono font-bold">
+                         <Lock className="w-2 h-2" /> Bloqueado
+                       </span>
+                     )}
+                   </div>
+
+                   <div className="mt-2.5 flex-1 flex flex-col justify-between">
+                     <div>
+                       <h4 className={cn("font-bold text-xs tracking-tight", badge.unlocked ? "text-neutral-200" : "text-neutral-500")}>
+                         {badge.title}
+                       </h4>
+                       <p className="text-[10px] text-neutral-500 leading-normal mt-1">
+                         {badge.description}
+                       </p>
+                     </div>
+                     
+                     <div className="mt-3 pt-2 border-t border-neutral-800/40 text-[9px] font-mono text-neutral-500">
+                       Disparador: <span className="text-neutral-400">{badge.errorName}</span>
+                     </div>
+                   </div>
+                 </div>
+               ))}
+             </div>
+
+             {allUnlocked && (
+               <div className="relative rounded-xl border border-amber-500/20 bg-gradient-to-r from-amber-500/5 via-yellow-500/5 to-amber-500/5 p-4 flex flex-col md:flex-row items-center justify-between gap-3 animate-in zoom-in-95 duration-550 overflow-hidden">
+                 <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-500/20 via-yellow-500/40 to-amber-500/20" />
+                 <div className="flex items-center gap-3">
+                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-400/20 to-yellow-600/10 border-2 border-amber-400/40 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/5 text-xl animate-pulse">
+                     🏆
+                   </div>
+                   <div>
+                     <h4 className="font-bold text-yellow-400 text-xs flex items-center gap-1.5 uppercase tracking-wider font-mono">
+                       Caçador de Bugs Supremo Adquirido! <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                     </h4>
+                     <p className="text-[10px] text-neutral-400 leading-normal mt-0.5 max-w-xl">
+                       Superpoder Máximo desbloqueado de madrugada! Você dominou a depuração de Tags Órfãs, Sintaxe JS, Estilos CSS e Indentação no CodeSandbox.
+                     </p>
+                   </div>
+                 </div>
+                 <span className="font-mono text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/35 px-2.5 py-1.5 rounded-lg uppercase tracking-widest shrink-0 shadow-sm shadow-amber-500/5">
+                   Lenda Certificada 👑
+                 </span>
+               </div>
+             )}
+           </div>
+         );
+       })()}
+    </div>
+
+    {/* Study Consistency Heatmap (Annual) */}
     <div className={cn("rounded-xl p-5 border mb-8", isNightMode ? "bg-black border-neutral-900/50" : "bg-neutral-900/40 border-neutral-800/50")}>
        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
           <div className="flex items-center gap-2">
             <Calendar className="w-5 h-5 text-indigo-400" />
-            <h3 className="font-bold text-neutral-200">Calendário de Foco (30 dias)</h3>
+            <div>
+              <h3 className="font-bold text-neutral-200 text-base">Consistência de Estudos</h3>
+              <p className="text-xs text-neutral-500 font-mono">Mapa de calor de foco anual (1 quadrado = 1 dia)</p>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-neutral-400">
-              <span>Sequência atual:</span>
-              <span className="font-bold text-emerald-400">{currentStreak} {currentStreak === 1 ? 'dia' : 'dias'} 🔥</span>
+              <span>Sequência de Pomodoros:</span>
+              <span className="font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                {currentStreak} {currentStreak === 1 ? 'dia' : 'dias'} 🔥
+              </span>
             </div>
             <button
                onClick={handleGenerateSummary}
@@ -311,7 +568,7 @@ export function StudyStatsDashboard({
               ) : (
                 <span>✨</span>
               )}
-              Mentoria
+              Mentoria AI
             </button>
           </div>
        </div>
@@ -328,20 +585,77 @@ export function StudyStatsDashboard({
           </div>
        )}
 
-       <div className="flex flex-wrap gap-2">
-         {last30Days.map((day, idx) => (
-           <div 
-             key={day.date}
-             title={`${day.date}: ${day.minutes} min`}
-             className={cn(
-               "w-6 h-6 sm:w-8 sm:h-8 rounded-sm sm:rounded-md transition-all duration-300",
-               day.metGoal 
-                  ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.4)] border border-emerald-400/50" 
-                  : (day.minutes > 0 ? "bg-emerald-900/40 border border-emerald-800/50" : (isNightMode ? "bg-neutral-900 border border-neutral-800/50" : "bg-neutral-800 border border-neutral-700/50")),
-               day.isToday && "ring-2 ring-indigo-500 ring-offset-2 ring-offset-black"
-             )}
-           />
-         ))}
+       {/* Heatmap Grid Wrapper */}
+       <div className="flex flex-col gap-2">
+         <div className="flex items-start overflow-x-auto pb-4 custom-scrollbar select-none">
+           {/* Row Headers (Weekdays) */}
+           <div className="flex flex-col gap-[3px] text-[10px] text-neutral-500 font-mono pr-2.5 pt-[18px] shrink-0 w-8">
+             <div className="h-[11px] leading-[11px]">Dom</div>
+             <div className="h-[11px] leading-[11px] text-neutral-400 font-medium">Seg</div>
+             <div className="h-[11px] leading-[11px]">Ter</div>
+             <div className="h-[11px] leading-[11px] text-neutral-400 font-medium font-bold">Qua</div>
+             <div className="h-[11px] leading-[11px]">Qui</div>
+             <div className="h-[11px] leading-[11px] text-neutral-400 font-medium font-bold">Sex</div>
+             <div className="h-[11px] leading-[11px]">Sáb</div>
+           </div>
+
+           {/* Grid with Month Headers */}
+           <div className="flex flex-col flex-1 min-w-0">
+             {/* Month abbreviations line */}
+             <div className="flex gap-[3px] mb-1.5 h-4 relative">
+               {annualWeeks.map((week, idx) => {
+                 const firstDay = week[0];
+                 const previousWeek = annualWeeks[idx - 1];
+                 const showMonthLabel = idx === 0 || (firstDay && previousWeek && firstDay.month !== previousWeek[0].month);
+                 return (
+                   <div key={idx} className="w-[11px] shrink-0 relative">
+                     {showMonthLabel && firstDay && (
+                       <span className="absolute left-0 bottom-0 text-[10px] uppercase tracking-wider text-neutral-400 font-bold whitespace-nowrap animate-fade-in">
+                         {firstDay.month}
+                       </span>
+                     )}
+                   </div>
+                 );
+               })}
+             </div>
+
+             {/* Matrix of Squares */}
+             <div className="flex gap-[3px]">
+               {annualWeeks.map((week, weekIdx) => (
+                 <div key={weekIdx} className="flex flex-col gap-[3px] shrink-0">
+                   {week.map((day) => (
+                     <div
+                       key={day.date}
+                       title={`${day.date}: ${day.minutes} min estudados${day.metGoal ? ' (Meta batida!)' : ''}`}
+                       className={cn(
+                         "w-[11px] h-[11px] rounded-[2px] transition-all duration-300 cursor-pointer",
+                         getHeatmapColor(day.minutes),
+                         day.isToday && "ring-[1.5px] ring-indigo-500 ring-offset-1 ring-offset-neutral-900"
+                       )}
+                     />
+                   ))}
+                 </div>
+               ))}
+             </div>
+           </div>
+         </div>
+
+         {/* Legend and stats footer */}
+         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between text-[11px] text-neutral-500 border-t border-neutral-800/40 pt-4 mt-2 gap-2">
+           <div className="flex items-center gap-1.5 font-mono">
+             <span>Meta diária:</span>
+             <span className="font-bold text-neutral-300 bg-neutral-900/60 px-2 py-0.5 rounded border border-neutral-800">25 min (1 Pomodoro)</span>
+           </div>
+           <div className="flex items-center gap-1.5 font-mono self-end sm:self-auto">
+             <span>Menos</span>
+             <div className="w-[10px] h-[10px] rounded-[2px] bg-neutral-200/50 border border-neutral-300/40" />
+             <div className="w-[10px] h-[10px] rounded-[2px] bg-emerald-950/40 border border-emerald-900/30" />
+             <div className="w-[10px] h-[10px] rounded-[2px] bg-emerald-800/50 border border-emerald-700/40" />
+             <div className="w-[10px] h-[10px] rounded-[2px] bg-emerald-500/80 border border-emerald-400/45" />
+             <div className="w-[10px] h-[10px] rounded-[2px] bg-emerald-400 border border-emerald-300/50" />
+             <span>Mais</span>
+           </div>
+         </div>
        </div>
     </div>
     </>

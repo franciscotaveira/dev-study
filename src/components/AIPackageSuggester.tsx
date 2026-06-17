@@ -45,6 +45,33 @@ const SUGGESTIONS: Record<string, Suggestion> = {
       { name: "Streamlit", url: "https://streamlit.io", description: "Crie interfaces de dados usando só Python." },
       { name: "Requests", url: "https://pypi.org/project/requests", description: "Bate-papo fácil com outras APIs." }
     ]
+  },
+  typescript: {
+    title: "Poder do TypeScript Moderno",
+    description: "TypeScript te impede de cometer erros básicos. Use as ferramentas do ecossistema que maximizam essa segurança e a produtividade.",
+    libraries: [
+      { name: "Zod", url: "https://zod.dev", description: "Validação extrema de dados TypeScript." },
+      { name: "tRPC", url: "https://trpc.io", description: "APIs com Tipagem Total (sem necessidade de gerar schemas)." },
+      { name: "Lucide Icons", url: "https://lucide.dev", description: "Ícones vetoriais modernos e leves." }
+    ]
+  },
+  java: {
+    title: "Arsenal do Arquiteto Java",
+    description: "No desenvolvimento corporativo, Java brilha com ecossistemas consolidados e que rodam a internet. Potencialize seu backend:",
+    libraries: [
+      { name: "Spring Boot", url: "https://spring.io/projects/spring-boot", description: "Injeção de dependência e APIs automáticas." },
+      { name: "Lombok", url: "https://projectlombok.org", description: "Corte centenas de linhas de código repetido (Getters, Setters)." },
+      { name: "MapStruct", url: "https://mapstruct.org", description: "Mapeamento rápido de DTOs para Entidades." }
+    ]
+  },
+  ai_engineering: {
+    title: "Stack de Inteligência Artificial",
+    description: "Você não precisa treinar modelos, você integra! Use o que o mercado adotou para orquestrar Agentes e RAG.",
+    libraries: [
+      { name: "LangChain", url: "https://js.langchain.com", description: "O maior canivete suíço para Engenharia de Prompts." },
+      { name: "Model Context Protocol", url: "https://modelcontextprotocol.io", description: "Conecte IAs a ferramentas reais com MCP." },
+      { name: "Vercel AI SDK", url: "https://sdk.vercel.ai", description: "Renderize React direto do output da IA." }
+    ]
   }
 };
 
