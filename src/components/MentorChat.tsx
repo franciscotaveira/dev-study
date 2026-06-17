@@ -152,6 +152,63 @@ export default function MentorChat({ activeTopic, isNightMode, isAutoFormatEnabl
     setLoading(false);
   };
 
+  const feynmanTechnique = async () => {
+    if (!activeTopic) return;
+    setLoading(true);
+    const userMsg = `Quero testar meu aprendizado usando a técnica de Feynman para o módulo: "${activeTopic}". Me dê um micro-desafio de código ou faça apenas UMA pergunta direta para ver se eu entendi. Não quero grandes explicações, apenas o desafio.`;
+    setMessages(prev => [...prev, { role: 'user', parts: [{ text: userMsg }] }]);
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          messages: [...messages, { role: 'user', parts: [{ text: userMsg }] }],
+          useHighThinking: false,
+          useSearch: false
+        })
+      });
+      if (!res.ok) {
+        throw new Error('Server error');
+      }
+      
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error("No reader");
+
+      const decoder = new TextDecoder('utf-8');
+      let botMsg = '';
+      setMessages(prev => [...prev, { role: 'model', parts: [{ text: '' }] }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.substring(6);
+            if (dataStr === '[DONE]') break;
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.text) {
+                botMsg += data.text;
+                setMessages(prev => {
+                  const newMsgs = [...prev];
+                  newMsgs[newMsgs.length - 1] = { role: 'model', parts: [{ text: botMsg }] };
+                  return newMsgs;
+                });
+              }
+            } catch (e) {}
+          }
+        }
+      }
+    } catch(err) {
+      console.error(err);
+      setMessages(prev => [...prev, { role: 'model', parts: [{ text: 'Erro ao invocar técnica de feynman.' }] }]);
+    }
+    setLoading(false);
+  };
+
   const sendMessage = async (customText?: string) => {
     const textToSend = typeof customText === 'string' ? customText : input;
     if (!textToSend.trim()) return;
@@ -329,10 +386,16 @@ export default function MentorChat({ activeTopic, isNightMode, isAutoFormatEnabl
 
           <div className="px-4 py-2 bg-neutral-900/50 border-t border-neutral-800 flex flex-wrap gap-2">
             {activeTopic && (
-              <button onClick={explainTopic} className="text-xs px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-full transition-colors flex items-center gap-1.5">
-                <Lightbulb className="w-3.5 h-3.5 text-yellow-500" />
-                Explique o tópico atual
-              </button>
+              <>
+                <button onClick={explainTopic} className="text-xs px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-full transition-colors flex items-center gap-1.5">
+                  <Lightbulb className="w-3.5 h-3.5 text-yellow-500" />
+                  Explique o tópico atual
+                </button>
+                <button onClick={feynmanTechnique} className="text-xs px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-full transition-colors flex items-center gap-1.5 border border-indigo-500/20">
+                  <Lightbulb className="w-3.5 h-3.5 text-indigo-400" />
+                  Teste de Feynman (Ativo)
+                </button>
+              </>
             )}
             
             <button 

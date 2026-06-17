@@ -180,6 +180,53 @@ export const curriculums: Record<string, { id: string, name: string, description
         ]
       }
     ]
+  },
+  hiperfoco: {
+    id: "hiperfoco",
+    name: "Modo Hiperfoco (TDAH)",
+    description: "Trilha otimizada para TDAH: micro-doses de dopamina, Sprints curtas e direto ao ponto.",
+    modules: [
+      {
+        title: "Sprint 1: O Coração da Lógica (Python)",
+        items: [
+          "1.1 Algoritmos: A Receita Secreta",
+          "1.2 Variáveis: Caixas Mágicas",
+          "1.3 Operadores: Matemática e Lógica",
+          "1.4 Decisões (If/Else): Escolhendo Caminhos",
+          "1.5 Repetições (Loops): Automação Simples",
+          "1.6 Funções: Comandos Mágicos",
+          "1.7 Coleções: Listas e Dicionários"
+        ]
+      },
+      {
+        title: "Sprint 2: A Arte de Construir na Web",
+        items: [
+          "2.1 HTML: O Esqueleto da Página",
+          "2.2 CSS: Dando Estilo e Personalidade",
+          "2.3 JavaScript: Fazendo a Página Ganhar Vida",
+          "2.4 Git & GitHub: Guardando suas Criações"
+        ]
+      },
+      {
+        title: "Sprint 3: O Poder Oculto (Dados & Backend)",
+        items: [
+          "3.1 POO: Organização Avançada",
+          "3.2 Lendo e Escrevendo Arquivos JSON/CSV",
+          "3.3 Bancos de Dados (SQLite)",
+          "3.4 Acessando APIs com requests",
+          "3.5 Flask: O Cérebro da sua Aplicação Web"
+        ]
+      },
+      {
+        title: "Sprint 4: O Próximo Nível (Arquitetura & IA)",
+        items: [
+          "4.1 Padrões de Projeto (Design Patterns)",
+          "4.2 Nuvem e Microsserviços Básicos",
+          "4.3 Segurança e Prevenção Básica (OWASP)",
+          "4.4 Intro à Inteligência Artificial (Scikit-Learn)"
+        ]
+      }
+    ]
   }
 };
 

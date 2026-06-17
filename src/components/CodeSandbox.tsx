@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Play,
   RotateCcw,
@@ -24,6 +25,8 @@ import {
   AlertCircle,
   Wand2,
   Info,
+  Maximize,
+  Minimize
 } from "lucide-react";
 
 import { clsx, type ClassValue } from 'clsx';
@@ -526,6 +529,7 @@ export default function CodeSandbox({
   >("idle");
 
   const [isGuideMode, setIsGuideMode] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   const formatCode = () => {
      if (activeTab === 'html') {
@@ -831,19 +835,30 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
     }
   };
 
-  return (
+  const content = (
     <div
-      className={`p-4 sm:p-5 rounded-2xl border transition-colors ${isNightMode ? "bg-neutral-900/50 border-neutral-800" : "bg-neutral-900 border-neutral-800"}`}
+      className={cn(
+        "transition-colors",
+        isFullscreen ? "fixed inset-0 z-[100] w-screen h-[100dvh] overflow-y-auto p-4 sm:p-6 md:p-8 flex flex-col" : "p-4 sm:p-5 rounded-2xl border",
+        isFullscreen ? (isNightMode ? "bg-[#0a0a0a]" : "bg-[#111111]") : (isNightMode ? "bg-neutral-900/50 border-neutral-800" : "bg-neutral-900 border-neutral-800")
+      )}
     >
       {/* Track Selector Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div className={cn("flex flex-wrap items-center justify-between gap-3 mb-4", isFullscreen && "sticky top-0 z-10 pb-4 border-b border-neutral-800 bg-inherit")}>
         <div className="flex items-center gap-2">
           <Terminal className="w-5 h-5 text-indigo-400" />
-          <h3 className="font-semibold text-white">
+          <h3 className="font-semibold text-white flex items-center gap-2">
             Laboratório Interativo Real-Time
+            <button 
+              onClick={() => setIsFullscreen(!isFullscreen)}
+              className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-300 transition-colors ml-2"
+              title={isFullscreen ? "Minimizar Laboratório" : "Foco Total no Laboratório (Tela Cheia)"}
+            >
+              {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+            </button>
           </h3>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
           {TRACKS.map((t, idx) => (
             <button
               key={t.id}
@@ -851,7 +866,7 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
                 setActiveTrackIdx(idx);
                 setActiveLessonIdx(0);
               }}
-              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 ${activeTrackIdx === idx ? "bg-indigo-500 text-white" : "bg-neutral-950 text-neutral-400 hover:text-white hover:bg-neutral-800"}`}
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-colors flex items-center shrink-0 gap-1 ${activeTrackIdx === idx ? "bg-indigo-500 text-white" : "bg-neutral-950 text-neutral-400 hover:text-white hover:bg-neutral-800"}`}
             >
               <span>{t.icon}</span>
               <span className="hidden xs:inline">{t.name}</span>
@@ -1146,7 +1161,7 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
       )}
 
       {/* Code Editor */}
-      <div className="relative">
+      <div className="relative flex-1 flex flex-col min-h-[176px]">
         <textarea
           value={currentEditorCode()}
           onChange={(e) => handleTextareaChange(e.target.value)}
@@ -1155,7 +1170,10 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
                formatCode();
              }
           }}
-          className="w-full h-44 bg-neutral-950 border border-neutral-800 rounded-lg p-3 font-mono text-xs text-indigo-300 focus:outline-none focus:border-indigo-500/50 resize-none leading-relaxed"
+          className={cn(
+            "w-full bg-neutral-950 border border-neutral-800 rounded-lg p-3 font-mono text-xs text-indigo-300 focus:outline-none focus:border-indigo-500/50 resize-none leading-relaxed",
+            isFullscreen ? "flex-1 min-h-[30vh]" : "h-44"
+          )}
           placeholder={`Escreva seu código ${activeTab.toUpperCase()} aqui...`}
         />
 
@@ -1179,8 +1197,8 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
       </div>
 
       {/* Live Preview Area */}
-      <div className="mt-4">
-        <div className="flex items-center justify-between px-3 py-1.5 bg-neutral-950 border border-neutral-800 border-b-0 rounded-t-lg text-xs text-neutral-500">
+      <div className={cn("mt-4 flex flex-col", isFullscreen && "flex-1 min-h-[35vh]")}>
+        <div className="flex items-center justify-between px-3 py-1.5 bg-neutral-950 border border-neutral-800 border-b-0 rounded-t-lg text-xs text-neutral-500 shrink-0">
           <span className="flex items-center gap-1.5">
             <Monitor className="w-3.5 h-3.5" /> Visualização do Navegador
           </span>
@@ -1191,12 +1209,12 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
             <RefreshCw className="w-3" /> Atualizar
           </button>
         </div>
-        <div className="h-32 bg-white rounded-b-lg border border-neutral-800 overflow-hidden">
+        <div className={cn("bg-white rounded-b-lg border border-neutral-800 overflow-hidden", isFullscreen ? "flex-1 flex" : "h-32")}>
           <iframe
             key={previewKey}
             title="Preview"
             srcDoc={combinedSrcDoc}
-            className="w-full h-full bg-white"
+            className="w-full h-full bg-white flex-1"
             sandbox="allow-scripts"
           />
         </div>
@@ -1289,4 +1307,10 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
       </div>
     </div>
   );
+
+  if (isFullscreen) {
+    return createPortal(content, document.body);
+  }
+
+  return content;
 }

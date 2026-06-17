@@ -33,6 +33,7 @@ export function StudyStatsDashboard({
   ];
 
   const totalShiftMinutes = shiftData.reduce((acc, curr) => acc + curr.value, 0);
+  const bestShift = [...shiftData].sort((a, b) => b.value - a.value)[0];
 
   // Colors for shifts
   const shiftColors = isNightMode 
@@ -154,12 +155,32 @@ export function StudyStatsDashboard({
       <div className={cn("rounded-xl p-5 border flex flex-col justify-between", isNightMode ? "bg-black border-neutral-900/50" : "bg-neutral-900/40 border-neutral-800/50")}>
         <div className="flex items-center gap-2 mb-4">
            <Clock className="w-4 h-4 text-neutral-400" />
-           <h3 className="text-sm font-bold text-neutral-300">Foco por Turno</h3>
+           <h3 className="text-sm font-bold text-neutral-300">Foco por Turno (h)</h3>
         </div>
         
         {totalShiftMinutes === 0 ? (
-          <div className="flex-1 flex flex-col justify-center items-center py-6 text-center">
-            <p className="text-xs text-neutral-500 font-mono italic max-w-[200px]">Nenhum minuto focado hoje de madrugada. Inicie o pomodoro para registrar!</p>
+          <div className="flex items-center">
+              <div className="h-40 w-1/2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[{ name: 'Sem foco', value: 1, icon: null }]}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={30}
+                      outerRadius={55}
+                      dataKey="value"
+                      fill={isNightMode ? '#262626' : '#d4d4d8'}
+                      stroke="none"
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="w-1/2 flex flex-col justify-center">
+                <p className="text-xs text-neutral-500 font-mono italic">
+                  Nenhum registro hoje. Inicie o pomodoro!
+                </p>
+              </div>
           </div>
         ) : (
           <div className="flex items-center">
@@ -188,13 +209,18 @@ export function StudyStatsDashboard({
                 </ResponsiveContainer>
               </div>
               <div className="w-1/2 space-y-3">
-                {shiftData.map((s, i) => (
-                   <div key={s.name} className="flex items-center gap-2 text-xs">
-                      <span className="shrink-0">{s.icon}</span>
-                      <span className="text-neutral-400 flex-1">{s.name}</span>
-                      <span className="font-bold text-neutral-200">{s.value} min</span>
-                   </div>
-                ))}
+                {shiftData.map((s, i) => {
+                   const isBest = s.value === bestShift.value && s.value > 0;
+                   return (
+                     <div key={s.name} className={cn("flex items-center gap-2 text-xs", isBest ? "bg-indigo-500/10 border border-indigo-500/20 px-2 py-1.5 rounded-lg -ml-2 w-[calc(100%+0.5rem)]" : "")}>
+                        <span className={cn("shrink-0", isBest ? "animate-pulse" : "")}>{s.icon}</span>
+                        <span className={cn("flex-1", isBest ? "text-indigo-400 font-medium" : "text-neutral-400")}>
+                          {s.name} {isBest && <span className="ml-1 text-[10px] uppercase tracking-wider text-indigo-300">Max</span>}
+                        </span>
+                        <span className="font-bold text-neutral-200">{(s.value / 60).toFixed(1)}h</span>
+                     </div>
+                   );
+                })}
               </div>
           </div>
         )}

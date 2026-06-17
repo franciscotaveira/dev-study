@@ -15,6 +15,9 @@ import MentorChat from './components/MentorChat';
 import CodeSandbox from './components/CodeSandbox';
 import { StudyStatsDashboard } from './components/StudyStatsDashboard';
 import Logbook from './components/Logbook';
+import { MissionLogbook } from './components/MissionLogbook';
+import { AIPackageSuggester } from './components/AIPackageSuggester';
+import { CurriculumDrawer } from './components/CurriculumDrawer';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -85,12 +88,14 @@ export default function App() {
   const [hasCopiedLink, setHasCopiedLink] = useState(false);
   const [curriculumJson, setCurriculumJson] = useState("");
   const [jsonError, setJsonError] = useState("");
+  // Gamification & Progress
   const [sctecGoals, setSctecGoals] = useStickyState<Record<string, boolean>>({
     'assistir-videos': false,
     'desafio-extra': false,
     'avaliacao-regular': false,
     'prazo-20-dias': false
   }, 'senai-sctec-goals');
+  const [dailyStudyGoalHours, setDailyStudyGoalHours] = useStickyState<number>(4, 'senai-daily-study-goals-hours');
 
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [reviewQuestion, setReviewQuestion] = useState("");
@@ -112,6 +117,7 @@ export default function App() {
   const [combatErrors, setCombatErrors] = useStickyState<Record<string, number>>({ 'Tags Órfãs': 0, 'Sintaxe JS': 0, 'Tipografia CSS': 0, 'Indentação': 0 }, 'senai-combat-errors-data');
   const [mobileActiveTab, setMobileActiveTab] = useState<'foco' | 'trilha'>('foco');
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
+  const [isCurriculumDrawerOpen, setIsCurriculumDrawerOpen] = useState(false);
 
   const [timeLeft, setTimeLeft] = useStickyState<number>(25 * 60, 'senai-time-left');
   const [timerDurationMinutes, setTimerDurationMinutes] = useStickyState<number>(25, 'senai-timer-duration');
@@ -313,6 +319,9 @@ export default function App() {
       } else if (newBadges.length > 0) {
         setToastMessage({ title: 'Nova Medalha! 🏅', msg: `Desbloqueada: ${newBadges[0]}`, icon: <Trophy className="w-5 h-5 text-amber-400" /> });
         setTimeout(() => setToastMessage(null), 5000);
+      } else {
+        setToastMessage({ title: 'Micro-dose de Dopamina! 🧠', msg: 'Missão concluída. Muito bem!', icon: <CheckCircle2 className="w-5 h-5 text-emerald-400" /> });
+        setTimeout(() => setToastMessage(null), 3000);
       }
 
       confetti({
@@ -456,6 +465,9 @@ export default function App() {
   const totalItems = curriculum.reduce((acc, curr) => acc + curr.items.length, 0);
   const progressPercent = totalItems > 0 ? Math.round((completedItems.length / totalItems) * 100) : 0;
 
+  const todayStr = new Date().toISOString().split('T')[0];
+  const totalFocusMinutes = dailyFocusDataRaw[todayStr] || 0;
+
   // Derive last 5 days of focus data
   const chartData = useMemo(() => {
     const today = new Date();
@@ -481,6 +493,20 @@ export default function App() {
   return (
     <div className={cn("min-h-screen font-sans transition-colors duration-500 relative", isNightMode ? "bg-black text-neutral-600" : "bg-neutral-950 text-neutral-300 selection:bg-indigo-500/30")}>
       
+      {/* Curriculum Sidebar */}
+      <CurriculumDrawer
+        isOpen={isCurriculumDrawerOpen}
+        onClose={() => setIsCurriculumDrawerOpen(false)}
+        curriculum={curriculum}
+        expandedModules={expandedModules}
+        toggleModule={toggleModule}
+        completedItems={completedItems}
+        activeItem={activeItem}
+        setActiveItem={setActiveItem}
+        handleAttemptCompletion={handleAttemptCompletion}
+        isNightMode={isNightMode}
+      />
+
       {/* Top XP Bar */}
       <div className={cn(
         "w-full px-4 sm:px-6 py-3 flex items-center justify-between border-b transition-colors z-40 sticky top-0 backdrop-blur-md",
@@ -498,10 +524,11 @@ export default function App() {
               </span>
               <button 
                 onClick={() => setIsImmersiveMode(!isImmersiveMode)}
-                className="hidden lg:flex items-center justify-center p-1.5 rounded-md hover:bg-neutral-800 text-neutral-400 hover:text-white transition-colors"
-                title={isImmersiveMode ? "Sair do Foco Imersivo" : "Foco Imersivo (Expandir)"}
+                className={cn("hidden lg:flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors", isImmersiveMode ? "bg-amber-500/20 text-amber-400 border border-amber-500/30" : "hover:bg-neutral-800 text-neutral-400 hover:text-white border border-transparent")}
+                title={isImmersiveMode ? "Sair do Modo Hiperfoco" : "Ativar Modo Hiperfoco"}
               >
                 {isImmersiveMode ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                {isImmersiveMode ? "Sair do Hiperfoco" : "Modo Hiperfoco"}
               </button>
             </div>
           </div>
@@ -890,7 +917,24 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex gap-3 justify-end shrink-0 mt-auto">
+              <div className="flex gap-3 justify-end shrink-0 mt-auto flex-wrap">
+                <button 
+                  onClick={() => {
+                    if (window.confirm("Esta ação vai apagar todas as missões concluídas, diário, histórico de tempo e medalhas. O currículo original ou JSON personalizado continuará intacto. Deseja mesmo começar um novo ciclo de estudos?")) {
+                        const keysToKeep = ['senai-custom-curriculum', 'senai-selected-curriculum-id', 'senai-auto-format'];
+                        Object.keys(localStorage).forEach(key => {
+                            if (key.startsWith('senai-') && !keysToKeep.includes(key)) {
+                                localStorage.removeItem(key);
+                            }
+                        });
+                        window.location.reload();
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-red-500 hover:text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-colors mr-auto"
+                  title="Começar Novo Semestre (Resetar Histórico)"
+                >
+                  🚀 Novo Semestre
+                </button>
                 <button 
                   onClick={() => {
                     if (window.confirm(`Restaurar a trilha ${curriculums[selectedCurriculumId].name}?`)) {
@@ -898,7 +942,7 @@ export default function App() {
                       setIsSettingsOpen(false);
                     }
                   }}
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-neutral-400 hover:text-red-400 hover:bg-neutral-800 transition-colors mr-auto"
+                  className="px-4 py-2 rounded-xl text-sm font-medium text-neutral-400 hover:text-red-400 hover:bg-neutral-800 transition-colors"
                 >
                   Limpar Custom
                 </button>
@@ -990,15 +1034,25 @@ export default function App() {
         
         {/* Left Column - Tracker */}
         <div className={cn(
-          "space-y-8 animate-in fade-in slide-in-from-left-4 duration-500", 
-          isImmersiveMode ? "hidden" : "lg:col-span-7",
+          "space-y-6 animate-in fade-in slide-in-from-left-4 duration-500", 
+          isImmersiveMode ? "hidden" : "lg:col-span-5",
           isNightMode && "opacity-30 hover:opacity-100 transition-opacity duration-500 contrast-75 saturate-0",
           mobileActiveTab === 'trilha' ? 'block' : 'hidden lg:block'
         )}>
           <div>
               <div className="flex items-start justify-between mb-2">
-                <h1 className="text-3xl font-medium tracking-tight text-white">Trilha de Estudos</h1>
+                <h1 className="text-3xl font-medium tracking-tight text-white flex items-center gap-2">
+                  Stats & Foco
+                </h1>
                 <div className="flex gap-2">
+                  <button
+                    onClick={() => setIsCurriculumDrawerOpen(true)}
+                    className="flex items-center gap-2 px-3 py-1.5 min-h-[44px] rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/20 transition-colors"
+                    title="Menu de Roteiro de Aula"
+                  >
+                    <ClipboardList className="w-5 h-5" />
+                    <span className="text-sm font-bold hidden sm:inline">Roteiro</span>
+                  </button>
                   <button
                     onClick={() => setIsInviteOpen(true)}
                     className="p-3 rounded-full border border-neutral-800 bg-neutral-900/50 text-neutral-400 hover:text-indigo-400 hover:border-indigo-500/30 transition-colors"
@@ -1175,130 +1229,6 @@ export default function App() {
               </div>
             </div>
 
-            <div className="space-y-4">
-            {curriculum.map((mod, modIdx) => (
-              <div key={mod.title} className="rounded-xl border border-neutral-800/60 bg-neutral-900/30 overflow-hidden">
-                <button 
-                  onClick={() => toggleModule(modIdx)}
-                  className="w-full px-5 py-4 flex items-center justify-between bg-neutral-900/50 hover:bg-neutral-800/50 transition-colors"
-                >
-                  <span className="font-medium text-neutral-200">{mod.title}</span>
-                  {expandedModules.includes(modIdx) ? (
-                    <ChevronDown className="w-5 h-5 text-neutral-500" />
-                  ) : (
-                    <ChevronRight className="w-5 h-5 text-neutral-500" />
-                  )}
-                </button>
-                
-                {expandedModules.includes(modIdx) && (
-                  <div className="divide-y divide-neutral-800/40">
-                    {mod.items.map((item) => {
-                      const isCompleted = completedItems.includes(item);
-                      const isActiveItem = activeItem === item;
-
-                      return (
-                        <motion.div 
-                          layout="position"
-                          key={item}
-                          initial={false}
-                          animate={isCompleted ? { backgroundColor: "rgba(99, 102, 241, 0.03)" } : { backgroundColor: "rgba(0, 0, 0, 0)" }}
-                          transition={{ duration: 0.5 }}
-                          className={cn(
-                            "px-3 sm:px-5 py-2.5 sm:py-3 flex items-start gap-3 sm:gap-4 transition-colors group relative overflow-hidden",
-                            isActiveItem && !isCompleted ? "bg-indigo-500/5" : "hover:bg-neutral-800/20"
-                          )}
-                        >
-                          <AnimatePresence>
-                            {isCompleted && (
-                              <motion.div
-                                initial={{ opacity: 0, scale: 0.8, x: -100 }}
-                                animate={{ opacity: [0, 1, 0], scale: 1, x: "100%" }}
-                                transition={{ duration: 0.8, ease: "easeInOut" }}
-                                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12 pointer-events-none z-0"
-                              />
-                            )}
-                          </AnimatePresence>
-
-                          <motion.button 
-                            onClick={() => handleAttemptCompletion(item)}
-                            whileTap={{ scale: 0.8 }}
-                            className="mt-0.5 shrink-0 z-10 hover:text-indigo-400 transition-colors relative w-5 h-5 flex items-center justify-center"
-                          >
-                            <AnimatePresence mode="wait" initial={false}>
-                              {isCompleted ? (
-                                <motion.div
-                                  key="check"
-                                  initial={{ scale: 0, opacity: 0, rotate: -45 }}
-                                  animate={{ scale: [1.5, 1], opacity: 1, rotate: 0 }}
-                                  exit={{ scale: 0, opacity: 0, rotate: 45 }}
-                                  transition={{ type: "spring", stiffness: 400, damping: 14 }}
-                                  className="absolute text-indigo-500"
-                                >
-                                  <CheckCircle2 className="w-5 h-5 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
-                                </motion.div>
-                              ) : (
-                                <motion.div
-                                  key="circle"
-                                  initial={{ scale: 0, opacity: 0 }}
-                                  animate={{ scale: 1, opacity: 1 }}
-                                  exit={{ scale: 0, opacity: 0 }}
-                                  className="absolute text-neutral-500"
-                                >
-                                  <Circle className="w-5 h-5" />
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </motion.button>
-                          
-                          <div className="flex-1 min-w-0 flex items-center justify-between gap-4 relative group-hover:z-10">
-                            <span className={cn(
-                              "text-sm leading-relaxed transition-colors relative",
-                              isCompleted ? "text-neutral-600" : "text-neutral-300",
-                              isActiveItem && !isCompleted && "text-indigo-300 font-medium"
-                            )}>
-                              {item}
-                              {isCompleted && (
-                                <motion.div
-                                  initial={{ width: 0 }}
-                                  animate={{ width: "100%" }}
-                                  transition={{ duration: 0.3, ease: "easeOut" }}
-                                  className="absolute left-0 top-1/2 -mt-px h-[1.5px] bg-neutral-600 origin-left pointer-events-none"
-                                />
-                              )}
-                            </span>
-                            
-                            {!isCompleted && (
-                              <button
-                                onClick={() => setActiveItem(item)}
-                                className={cn(
-                                  "shrink-0 px-3 py-1.5 rounded-md text-xs font-medium transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100",
-                                  isActiveItem 
-                                    ? "bg-indigo-500/20 text-indigo-300 opacity-100" 
-                                    : "bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white"
-                                )}
-                              >
-                                {isActiveItem ? 'Em foco' : 'Focar'}
-                              </button>
-                            )}
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right Column - Active Module & Timer */}
-        <div className={cn(
-          isNightMode ? "animate-in zoom-in-95 fade-in duration-700" : "",
-          isImmersiveMode ? "lg:col-span-12 max-w-4xl mx-auto w-full" : "lg:col-span-5",
-          mobileActiveTab === 'foco' ? 'block' : 'hidden lg:block'
-        )}>
-          <div className={cn("sticky top-12 space-y-6", isNightMode && "space-y-8")}>
-            
             {/* Active Task Card */}
             <div className={cn("rounded-2xl border backdrop-blur-sm transition-colors", isNightMode ? "border-neutral-900 bg-neutral-950/40 p-8" : "border-indigo-500/20 bg-indigo-500/5 p-6")}>
               <div className={cn("flex items-center justify-between mb-4", isNightMode ? "text-neutral-600" : "text-indigo-400")}>
@@ -1483,6 +1413,12 @@ export default function App() {
               </div>
             </div>
 
+            {/* Dicas de IA (Copiloto) */}
+            <AIPackageSuggester 
+              selectedCurriculumId={selectedCurriculumId} 
+              isNightMode={isNightMode} 
+            />
+
             {/* Metas SCTEC / Carreira Tech Checklist */}
             <div className={cn("rounded-2xl border p-6 transition-colors", isNightMode ? "border-neutral-900 bg-neutral-950/40" : "border-neutral-800 bg-neutral-900/20")}>
               <div className="flex items-center gap-2 mb-3">
@@ -1493,6 +1429,39 @@ export default function App() {
                 Acompanhe os requisitos práticos para consolidar seu perfil dev e ser mestre full-stack:
               </p>
               
+              {/* Meta Diária */}
+              <div className="mb-5 pb-5 border-b border-neutral-800/60">
+                <label className="flex items-center justify-between text-sm mb-2">
+                  <span className={cn("font-medium", isNightMode ? "text-neutral-400" : "text-neutral-300")}>
+                    Meta Diária de Foco
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      max="24"
+                      value={dailyStudyGoalHours}
+                      onChange={(e) => setDailyStudyGoalHours(Math.max(1, Math.min(24, parseInt(e.target.value) || 1)))}
+                      className={cn(
+                        "w-16 px-2 py-1 bg-transparent border rounded-lg text-center text-white focus:outline-none focus:ring-1 focus:ring-indigo-500/50",
+                        isNightMode ? "border-neutral-800" : "border-neutral-700"
+                      )}
+                    />
+                    <span className={cn("text-xs", isNightMode ? "text-neutral-500" : "text-neutral-400")}>horas</span>
+                  </div>
+                </label>
+                <div className="flex w-full h-1.5 bg-neutral-800/80 rounded-full overflow-hidden">
+                  <div 
+                    className="bg-indigo-500 h-full transition-all duration-500"
+                    style={{ width: `${Math.min(100, Math.max(0, (totalFocusMinutes / 60) / dailyStudyGoalHours * 100))}%` }}
+                  />
+                </div>
+                <div className="mt-1 flex justify-between items-center text-[10px] uppercase tracking-wider text-neutral-500">
+                  <span>{(totalFocusMinutes / 60).toFixed(1)}h focadas</span>
+                  <span>{dailyStudyGoalHours}h meta</span>
+                </div>
+              </div>
+
               <div className="space-y-3">
                 <button 
                   onClick={() => setSctecGoals(prev => ({ ...prev, 'assistir-videos': !prev['assistir-videos'] }))}
@@ -1580,8 +1549,18 @@ export default function App() {
               </div>
             </div>
 
+        </div>
+
+        {/* Right Column - Lab & Chat */}
+        <div className={cn(
+          isNightMode ? "animate-in zoom-in-95 fade-in duration-700" : "",
+          isImmersiveMode ? "lg:col-span-12 max-w-4xl mx-auto w-full" : "lg:col-span-7",
+          mobileActiveTab === 'foco' ? 'block' : 'hidden lg:block'
+        )}>
+          <div className={cn("sticky top-16 flex flex-col h-[calc(100vh-8rem)] overflow-hidden rounded-2xl border", isNightMode ? "bg-neutral-950/40 border-neutral-900" : "bg-white/5 border-neutral-800")}>
+            
             {/* Abas do Mentor & Laboratório */}
-            <div className="flex border-b border-neutral-800 bg-neutral-900/10 rounded-t-xl overflow-hidden">
+            <div className="flex border-b border-neutral-800 bg-neutral-900/40 shrink-0">
               <button
                 onClick={() => setActiveRightTab('chat')}
                 className={cn(
@@ -1640,6 +1619,13 @@ export default function App() {
         </div>
         
       </div>
+      
+      <MissionLogbook 
+        completedItems={completedItems} 
+        completionTimes={completionTimes} 
+        missionTime={missionTime} 
+        isNightMode={isNightMode} 
+      />
 
       {/* Floating Toast Notification */}
       <AnimatePresence>
