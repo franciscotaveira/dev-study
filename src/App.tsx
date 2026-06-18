@@ -17,6 +17,7 @@ import {
 import { curriculums, defaultCurriculumId, Module } from "./data/curriculum";
 import {
   ChevronRight,
+  ChevronLeft,
   ChevronDown,
   CheckCircle2,
   Circle,
@@ -133,6 +134,10 @@ export default function App() {
   const [completedItems, setCompletedItems] = useStickyState<string[]>(
     [],
     "senai-completed-items",
+  );
+  const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useStickyState<boolean>(
+    false,
+    "senai-left-sidebar-collapsed",
   );
   const [completionTimes, setCompletionTimes] = useStickyState<
     Record<string, string>
@@ -1652,14 +1657,15 @@ export default function App() {
       {/* Layout SaaS de Alta Performance com Sidebar */}
       <div
         className={cn(
-          "min-h-screen flex flex-col md:flex-row transition-colors duration-500",
+          "min-h-screen flex flex-col md:flex-row transition-all duration-300",
           isNightMode ? "bg-[#09090b]" : "bg-neutral-950",
         )}
       >
         {/* BARRA LATERAL ESQUERDA - SaaS Sidebar */}
         <div
           className={cn(
-            "w-full md:w-64 border-b md:border-b-0 md:border-r p-5 shrink-0 flex flex-col justify-between sticky top-0 md:h-screen z-30 backdrop-blur-md",
+            "w-full border-b md:border-b-0 md:border-r p-5 shrink-0 flex flex-col justify-between sticky top-0 md:h-screen z-30 backdrop-blur-md transition-all duration-300",
+            isLeftSidebarCollapsed ? "md:w-20" : "md:w-64",
             isNightMode
               ? "bg-[#09090b]/90 border-neutral-900/60"
               : "bg-neutral-950/95 border-neutral-900/80",
@@ -1668,63 +1674,92 @@ export default function App() {
           <div className="space-y-6">
             {/* Logo do SaaS com Rank / Nível Acoplado */}
             <div>
-              <div className="flex items-center gap-2.5 mb-2.5">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center shadow-inner">
-                  <Trophy className="w-4 h-4 text-indigo-400" />
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center shadow-inner shrink-0">
+                    <Trophy className="w-4 h-4 text-indigo-400" />
+                  </div>
+                  <div className={cn("transition-opacity duration-300", isLeftSidebarCollapsed ? "md:hidden" : "block")}>
+                    <h2 className="font-bold text-neutral-100 text-xs tracking-tight">
+                      UNIVERSAL DEV HOOD
+                    </h2>
+                    <p className="text-[10px] text-neutral-500 font-mono">
+                      MODO MADRUGADA ACTIVE
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="font-bold text-neutral-100 text-sm tracking-tight">
-                    UNIVERSAL DEV HOOD
-                  </h2>
-                  <p className="text-[10px] text-neutral-500 font-mono">
-                    MODO MADRUGADA ACTIVE
-                  </p>
-                </div>
+                {/* Botão de colapso */}
+                <button
+                  onClick={() => setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed)}
+                  className="hidden md:flex p-1.5 rounded-lg text-neutral-500 hover:text-white hover:bg-neutral-900 transition-all active:scale-95 shrink-0"
+                  title={isLeftSidebarCollapsed ? "Expandir barra lateral" : "Recolher barra lateral"}
+                >
+                  {isLeftSidebarCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                  ) : (
+                    <ChevronLeft className="w-4 h-4" />
+                  )}
+                </button>
               </div>
 
               {/* Perfil do Estudante / Progresso de XP */}
-              <div className="bg-neutral-900/40 border border-neutral-900 rounded-xl p-3 mt-4 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1.5 font-bold text-neutral-300">
-                    <Award className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Nível {levelInfo.level}</span>
+              <div className={cn(
+                "bg-neutral-900/40 border border-neutral-900 rounded-xl mt-4 transition-all duration-300",
+                isLeftSidebarCollapsed ? "md:p-2 md:items-center md:justify-center flex flex-col" : "p-3 space-y-2"
+              )}>
+                {isLeftSidebarCollapsed ? (
+                  <div className="hidden md:flex flex-col items-center gap-1" title={`Nível ${levelInfo.level} - ${levelInfo.totalXP}/${levelInfo.nextLevelXP} XP`}>
+                    <div className="w-8 h-8 rounded-full bg-neutral-900 border border-indigo-500/30 flex items-center justify-center text-[10px] font-black text-indigo-400 shadow-inner">
+                      L{levelInfo.level}
+                    </div>
                   </div>
-                  <span className="font-mono text-[10px] text-neutral-500 font-bold">
-                    {levelInfo.totalXP}/{levelInfo.nextLevelXP} XP
-                  </span>
-                </div>
-                <div className="h-1.5 w-full bg-neutral-950 rounded-full overflow-hidden border border-neutral-900">
-                  <div
-                    className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-1000"
-                    style={{ width: `${Math.max(1, levelInfo.progress)}%` }}
-                  />
-                </div>
-                <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider text-center">
-                  {levelInfo.title}
-                </p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 font-bold text-neutral-300">
+                        <Award className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Nível {levelInfo.level}</span>
+                      </div>
+                      <span className="font-mono text-[10px] text-neutral-500 font-bold">
+                        {levelInfo.totalXP}/{levelInfo.nextLevelXP} XP
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-neutral-950 rounded-full overflow-hidden border border-neutral-900">
+                      <div
+                        className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-1000"
+                        style={{ width: `${Math.max(1, levelInfo.progress)}%` }}
+                      />
+                    </div>
+                    <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider text-center">
+                      {levelInfo.title}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* SELEÇÃO DE TABULAÇOES - Botões de Funções Focados */}
             <div className="space-y-1.5">
-              <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest block px-1">
+              <span className={cn("text-[9px] font-bold text-neutral-500 uppercase tracking-widest block px-1", isLeftSidebarCollapsed ? "md:hidden" : "block")}>
                 Menu SaaS
               </span>
 
               <button
                 onClick={() => setActiveSaaSTab("stats")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all border",
+                  "w-full flex items-center transition-all border rounded-xl",
+                  isLeftSidebarCollapsed ? "md:justify-center md:py-3 md:px-0" : "justify-between px-3 py-2",
                   activeSaaSTab === "stats"
                     ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 shadow-sm"
                     : "bg-transparent border-transparent text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30",
                 )}
+                title="Dashboard & Selos (F1)"
               >
                 <div className="flex items-center gap-2">
-                  <Flame className="w-4 h-4 text-amber-500" />
-                  <span>Dashboard & Selos</span>
+                  <Flame className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className={isLeftSidebarCollapsed ? "md:hidden" : "block"}>Dashboard & Selos</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className={cn("flex items-center gap-1", isLeftSidebarCollapsed ? "md:hidden" : "flex")}>
                   {streak > 0 && (
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">
                       {streak}d
@@ -1739,17 +1774,19 @@ export default function App() {
               <button
                 onClick={() => setActiveSaaSTab("curriculum")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all border",
+                  "w-full flex items-center transition-all border rounded-xl",
+                  isLeftSidebarCollapsed ? "md:justify-center md:py-3 md:px-0" : "justify-between px-3 py-2",
                   activeSaaSTab === "curriculum"
                     ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 shadow-sm"
                     : "bg-transparent border-transparent text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30",
                 )}
+                title="Roteiro da Trilha (F2)"
               >
                 <div className="flex items-center gap-2">
-                  <ClipboardList className="w-4 h-4 text-blue-400" />
-                  <span>Roteiro da Trilha</span>
+                  <ClipboardList className="w-4 h-4 text-blue-400 shrink-0" />
+                  <span className={isLeftSidebarCollapsed ? "md:hidden" : "block"}>Roteiro da Trilha</span>
                 </div>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-950 text-neutral-500 border border-neutral-900">
+                <span className={cn("text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-950 text-neutral-500 border border-neutral-900", isLeftSidebarCollapsed ? "md:hidden" : "inline")}>
                   F2
                 </span>
               </button>
@@ -1757,17 +1794,19 @@ export default function App() {
               <button
                 onClick={() => setActiveSaaSTab("lab")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all border",
+                  "w-full flex items-center transition-all border rounded-xl",
+                  isLeftSidebarCollapsed ? "md:justify-center md:py-3 md:px-0" : "justify-between px-3 py-2",
                   activeSaaSTab === "lab"
                     ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 shadow-sm"
                     : "bg-transparent border-transparent text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30",
                 )}
+                title="Laboratório Prático (F3)"
               >
                 <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-indigo-400" />
-                  <span>Laboratório Prático</span>
+                  <Zap className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <span className={isLeftSidebarCollapsed ? "md:hidden" : "block"}>Laboratório Prático</span>
                 </div>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-950 text-neutral-500 border border-neutral-900">
+                <span className={cn("text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-950 text-neutral-500 border border-neutral-900", isLeftSidebarCollapsed ? "md:hidden" : "inline")}>
                   F3
                 </span>
               </button>
@@ -1775,17 +1814,19 @@ export default function App() {
               <button
                 onClick={() => setActiveSaaSTab("chat")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all border",
+                  "w-full flex items-center transition-all border rounded-xl",
+                  isLeftSidebarCollapsed ? "md:justify-center md:py-3 md:px-0" : "justify-between px-3 py-2",
                   activeSaaSTab === "chat"
                     ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 shadow-sm"
                     : "bg-transparent border-transparent text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30",
                 )}
+                title="Orientador IA Chat (F4)"
               >
                 <div className="flex items-center gap-2">
-                  <BrainCircuit className="w-4 h-4 text-emerald-400" />
-                  <span>Orientador IA Chat</span>
+                  <BrainCircuit className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className={isLeftSidebarCollapsed ? "md:hidden" : "block"}>Orientador IA Chat</span>
                 </div>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-950 text-neutral-500 border border-neutral-900">
+                <span className={cn("text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-950 text-neutral-500 border border-neutral-900", isLeftSidebarCollapsed ? "md:hidden" : "inline")}>
                   F4
                 </span>
               </button>
@@ -1793,24 +1834,26 @@ export default function App() {
               <button
                 onClick={() => setActiveSaaSTab("career")}
                 className={cn(
-                  "w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all border",
+                  "w-full flex items-center transition-all border rounded-xl",
+                  isLeftSidebarCollapsed ? "md:justify-center md:py-3 md:px-0" : "justify-between px-3 py-2",
                   activeSaaSTab === "career"
                     ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400 shadow-sm"
                     : "bg-transparent border-transparent text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/30",
                 )}
+                title="Carreira & Pós-Graduação (F5)"
               >
                 <div className="flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-purple-400" />
-                  <span>Carreira & Pós-Graduação</span>
+                  <Briefcase className="w-4 h-4 text-purple-400 shrink-0" />
+                  <span className={isLeftSidebarCollapsed ? "md:hidden" : "block"}>Carreira & Pós</span>
                 </div>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-950 text-neutral-500 border border-neutral-900">
+                <span className={cn("text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-950 text-neutral-500 border border-neutral-900", isLeftSidebarCollapsed ? "md:hidden" : "inline")}>
                   F5
                 </span>
               </button>
             </div>
 
             {/* Micro Vitórias rápidas na lateral */}
-            {completedItems.length > 0 && (
+            {completedItems.length > 0 && !isLeftSidebarCollapsed && (
               <div className="hidden md:block space-y-2 mt-4 pt-4 border-t border-neutral-900">
                 <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest block px-1">
                   Concluídos Recentes
@@ -1840,7 +1883,8 @@ export default function App() {
             <button
               onClick={() => setIsNightMode(!isNightMode)}
               className={cn(
-                "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border",
+                "w-full flex items-center gap-2.5 border transition-all rounded-xl",
+                isLeftSidebarCollapsed ? "md:justify-center md:py-3 md:px-0" : "px-3 py-2",
                 isNightMode
                   ? "bg-yellow-500/5 border-yellow-500/20 text-yellow-500"
                   : "bg-neutral-900/40 border-neutral-950 text-neutral-400 hover:text-neutral-200",
@@ -1852,35 +1896,46 @@ export default function App() {
               }
             >
               {isNightMode ? (
-                <Sun className="w-4 h-4" />
+                <Sun className="w-4 h-4 shrink-0" />
               ) : (
-                <Moon className="w-4 h-4" />
+                <Moon className="w-4 h-4 shrink-0" />
               )}
-              <span>{isNightMode ? "Modo Luz" : "Modo Madrugada"}</span>
+              <span className={isLeftSidebarCollapsed ? "md:hidden" : "inline"}>
+                {isNightMode ? "Modo Luz" : "Modo Madrugada"}
+              </span>
             </button>
 
             {/* Outros Utilitários */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className={cn("grid gap-2", isLeftSidebarCollapsed ? "grid-cols-1 justify-items-center" : "grid-cols-3")}>
               <button
                 onClick={() => setIsHelpOpen(true)}
-                className="py-2.5 rounded-lg border border-neutral-900 bg-neutral-900/40 text-neutral-400 hover:text-indigo-400 transition-colors flex items-center justify-center"
+                className={cn(
+                  "border border-neutral-900 bg-neutral-900/40 text-neutral-400 hover:text-indigo-400 transition-colors flex items-center justify-center rounded-lg",
+                  isLeftSidebarCollapsed ? "w-9 h-9" : "py-2.5 w-full"
+                )}
                 title="Ajuda e Manual do Aluno"
               >
-                <HelpCircle className="w-4 h-4" />
+                <HelpCircle className="w-4 h-4 shrink-0" />
               </button>
               <button
                 onClick={() => setIsToolsModalOpen(true)}
-                className="py-2.5 rounded-lg border border-neutral-900 bg-neutral-900/40 text-neutral-400 hover:text-indigo-400 transition-colors flex items-center justify-center"
+                className={cn(
+                  "border border-neutral-900 bg-neutral-900/40 text-neutral-400 hover:text-indigo-400 transition-colors flex items-center justify-center rounded-lg",
+                  isLeftSidebarCollapsed ? "w-9 h-9" : "py-2.5 w-full"
+                )}
                 title="Ferramentas e Extensões"
               >
-                <Briefcase className="w-4 h-4" />
+                <Briefcase className="w-4 h-4 shrink-0" />
               </button>
               <button
                 onClick={() => setIsSettingsOpen(true)}
-                className="py-2.5 rounded-lg border border-neutral-900 bg-neutral-900/40 text-neutral-400 hover:text-indigo-400 transition-colors flex items-center justify-center"
+                className={cn(
+                  "border border-neutral-900 bg-neutral-900/40 text-neutral-400 hover:text-indigo-400 transition-colors flex items-center justify-center rounded-lg",
+                  isLeftSidebarCollapsed ? "w-9 h-9" : "py-2.5 w-full"
+                )}
                 title="Configurações da Trilha"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-4 h-4 shrink-0" />
               </button>
             </div>
           </div>
