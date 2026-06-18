@@ -237,6 +237,29 @@ export function StudyStatsDashboard({
   const [isGeneratingSummary, setIsGeneratingSummary] = React.useState(false);
   const [weeklySummary, setWeeklySummary] = React.useState<string | null>(null);
 
+  const [isGeneratingNextModule, setIsGeneratingNextModule] = React.useState(false);
+  const [nextModuleSuggestion, setNextModuleSuggestion] = React.useState<string | null>(null);
+
+  const handleSuggestNextModule = async () => {
+    try {
+      setIsGeneratingNextModule(true);
+      const res = await fetch("/api/next-module", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completedItems }),
+      });
+      const data = await res.json();
+      if (data.text) {
+        setNextModuleSuggestion(data.text);
+      }
+    } catch (e) {
+      console.error(e);
+      setNextModuleSuggestion("Não foi possível gerar a sugestão agora. Mantenha o foco!");
+    } finally {
+      setIsGeneratingNextModule(false);
+    }
+  };
+
   const handleGenerateSummary = async () => {
     try {
       setIsGeneratingSummary(true);
@@ -1041,6 +1064,64 @@ export function StudyStatsDashboard({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* RAG Next Module Suggestion Panel */}
+      <div
+        className={cn(
+          "rounded-xl p-5 border mb-8",
+          isNightMode ? "bg-indigo-950/20 border-indigo-900" : "bg-indigo-50 border-indigo-100"
+        )}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-indigo-400 animate-pulse" />
+            </div>
+            <div>
+              <h3 className={cn("font-bold text-sm uppercase tracking-wider font-mono", isNightMode ? "text-indigo-200" : "text-indigo-900")}>
+                Próximo Passo (RAG Analytics)
+              </h3>
+              <p className={cn("text-[10px] font-mono", isNightMode ? "text-indigo-400/70" : "text-indigo-700/70")}>
+                Análise de currículo baseada no seu histórico de missões
+              </p>
+            </div>
+          </div>
+          
+          <button
+            onClick={handleSuggestNextModule}
+            disabled={isGeneratingNextModule}
+            className={cn(
+              "text-xs px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2",
+              isNightMode
+                ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/20 shadow-md disabled:opacity-50"
+                : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20 shadow-md disabled:opacity-50"
+            )}
+          >
+            {isGeneratingNextModule ? (
+              <>
+                <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                <span>Analisando...</span>
+              </>
+            ) : (
+              <>
+                <BrainCircuit className="w-3.5 h-3.5" />
+                <span>Sugerir Módulo</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {nextModuleSuggestion && (
+          <div className="mt-4 pt-4 border-t border-indigo-500/20">
+            <div className={cn(
+              "prose prose-sm max-w-none font-mono text-xs leading-relaxed",
+              isNightMode ? "text-indigo-200 prose-invert" : "text-indigo-900"
+            )}>
+              <Markdown>{nextModuleSuggestion}</Markdown>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Study Consistency Heatmap (Annual) */}

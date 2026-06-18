@@ -161,39 +161,67 @@ export default function SaaSTabsArea(props: SaaSTabsAreaProps) {
                     </div>
 
                     {/* Cronômetro e Controles Inline */}
-                    <div className="flex items-center justify-between bg-neutral-950/60 border border-neutral-900 p-3 rounded-xl mb-3.5">
-                      <div className="flex items-center gap-3">
-                        <div className="text-2xl font-mono font-bold text-white select-none leading-none tracking-tight">
-                          {formatTime(timeLeft)}
+                    <div className="bg-neutral-950/60 border border-neutral-900 p-3 rounded-xl mb-4">
+                      <div className="flex items-center justify-between mb-3 border-b border-neutral-900/50 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="text-2xl font-mono font-bold text-white select-none leading-none tracking-tight">
+                            {formatTime(timeLeft)}
+                          </div>
+                          <div className="flex items-center gap-1 border-l border-neutral-900/80 pl-3">
+                            <button
+                              onClick={() => setIsActive(!isActive)}
+                              className={cn(
+                                "p-1.5 rounded-lg transition-colors",
+                                isActive ? "text-amber-400 hover:bg-neutral-900" : "text-emerald-400 hover:bg-neutral-900"
+                              )}
+                              title={isActive ? "Pausar" : "Iniciar"}
+                            >
+                              {isActive ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                            </button>
+                            <button
+                              onClick={resetTimer}
+                              className="p-1.5 rounded-lg text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900 transition-colors"
+                              title="Reiniciar"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1 border-l border-neutral-900/80 pl-3">
-                          <button
-                            onClick={() => setIsActive(!isActive)}
-                            className={cn(
-                              "p-1.5 rounded-lg transition-colors",
-                              isActive ? "text-amber-400 hover:bg-neutral-900" : "text-emerald-400 hover:bg-neutral-900"
-                            )}
-                            title={isActive ? "Pausar" : "Iniciar"}
-                          >
-                            {isActive ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                          </button>
-                          <button
-                            onClick={resetTimer}
-                            className="p-1.5 rounded-lg text-neutral-500 hover:text-neutral-300 hover:bg-neutral-900 transition-colors"
-                            title="Reiniciar"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
+
+                        <button
+                          onClick={startQuickReview}
+                          disabled={isReviewLoading}
+                          className="flex items-center gap-1 px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all font-mono uppercase"
+                        >
+                          <Award className="w-3 h-3" /> REVER
+                        </button>
                       </div>
 
-                      <button
-                        onClick={startQuickReview}
-                        disabled={isReviewLoading}
-                        className="flex items-center gap-1 px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-bold text-indigo-300 hover:bg-indigo-500/20 transition-all font-mono uppercase"
-                      >
-                        <Award className="w-3 h-3" /> REVER
-                      </button>
+                      {/* Session Focus Score Gauge */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[9px] font-mono text-neutral-400 uppercase tracking-widest flex items-center gap-1">
+                            <Zap className="w-3 h-3 text-amber-400" /> Deep Work
+                          </span>
+                          <span className="text-[10px] font-mono font-bold text-indigo-400">
+                            {Math.round(((timerDurationMinutes * 60 - timeLeft) / (timerDurationMinutes * 60)) * 100) || 0}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-neutral-900 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-1000 ease-linear"
+                            style={{ width: `${Math.max(0, Math.min(100, ((timerDurationMinutes * 60 - timeLeft) / (timerDurationMinutes * 60)) * 100))}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between items-center mt-1.5">
+                          <span className="text-[8px] text-neutral-500 font-mono">
+                            Foco: {Math.floor((timerDurationMinutes * 60 - timeLeft) / 60)} min
+                          </span>
+                          <span className="text-[8px] text-neutral-500 font-mono">
+                            Sessão: {timerDurationMinutes} min
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Meta Atual */}

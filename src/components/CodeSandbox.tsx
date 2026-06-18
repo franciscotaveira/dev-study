@@ -45,6 +45,8 @@ import { useExternalWindow } from "../hooks/useExternalWindow";
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+import { ArchitectureFlow } from "./ArchitectureFlow";
+
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -827,7 +829,7 @@ export default function CodeSandbox({
   isAutoFormatEnabled,
   onSolvedBug,
 }: CodeSandboxProps) {
-  const [activeTab, setActiveTab] = useState<"html" | "css" | "js">("html");
+  const [activeTab, setActiveTab] = useState<"html" | "css" | "js" | "flow">("html");
   const [activeTrackIdx, setActiveTrackIdx] = useState(0);
   const [activeLessonIdx, setActiveLessonIdx] = useState(0);
 
@@ -1950,6 +1952,14 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
             <kbd className="text-[8px] opacity-75 font-mono px-1 py-0.2 bg-neutral-900 rounded border border-neutral-700">Alt+3</kbd>
           </button>
 
+          <button
+            onClick={() => { playSound('click'); setActiveTab("flow"); }}
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${activeTab === "flow" ? "bg-indigo-600 text-white border border-indigo-500" : "text-indigo-400 hover:text-indigo-300"}`}
+            title="Diagrama Arquitetural"
+          >
+            <Layers className="w-3.5 h-3.5" /> Diagrama Visual
+          </button>
+
           {/* Template Selector Dropdown */}
           <div className="relative inline-block text-left">
             <div>
@@ -2308,25 +2318,31 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
         )}
       </div>
 
-      {/* Code Editor */}
+      {/* Code Editor or Flow */}
       <div className="relative flex-1 flex flex-col min-h-[176px]">
-        <textarea
-          value={currentEditorCode()}
-          onChange={(e) => {
-            handleTextareaChange(e.target.value);
-            playKeyboardClack();
-          }}
-          onBlur={() => {
-             if (isAutoFormatEnabled && !isGuideMode) {
-               formatCode();
-             }
-          }}
-          className={cn(
-            "w-full bg-neutral-950 border border-neutral-800 rounded-lg p-3 font-mono text-xs text-indigo-300 focus:outline-none focus:border-indigo-500/50 resize-none leading-relaxed",
-            isFullscreen ? "flex-1 min-h-[30vh]" : "h-44"
-          )}
-          placeholder={`Escreva seu código ${activeTab.toUpperCase()} aqui...`}
-        />
+        {activeTab === 'flow' ? (
+           <div className={cn("w-full bg-neutral-950 border border-neutral-800 rounded-lg overflow-hidden", isFullscreen ? "flex-1 min-h-[30vh]" : "h-44")}>
+              <ArchitectureFlow />
+           </div>
+        ) : (
+          <textarea
+            value={currentEditorCode()}
+            onChange={(e) => {
+              handleTextareaChange(e.target.value);
+              playKeyboardClack();
+            }}
+            onBlur={() => {
+               if (isAutoFormatEnabled && !isGuideMode) {
+                 formatCode();
+               }
+            }}
+            className={cn(
+              "w-full bg-neutral-950 border border-neutral-800 rounded-lg p-3 font-mono text-xs text-indigo-300 focus:outline-none focus:border-indigo-500/50 resize-none leading-relaxed",
+              isFullscreen ? "flex-1 min-h-[30vh]" : "h-44"
+            )}
+            placeholder={`Escreva seu código ${activeTab.toUpperCase()} aqui...`}
+          />
+        )}
 
         {activeSyntaxHints.length > 0 && (
           <div className="absolute bottom-2 right-2 left-2 animate-in fade-in slide-in-from-bottom-2 duration-300">

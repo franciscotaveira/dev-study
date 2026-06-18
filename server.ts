@@ -180,6 +180,41 @@ Sintetize essas informações em sua resposta ao aluno, sendo rigorosamente téc
     }
   });
 
+  app.post("/api/next-module", async (req, res) => {
+    try {
+      const { completedItems } = req.body;
+      const ragContext = `
+[CONTEXTO TÉCNICO INTERNO - RAG ATIVO]
+--- Ementa Pós-Graduação Full-Stack (12 Meses) ---
+Mês 1-2: Fundamentos de Arquitetura de Software, Clean Code e SOLID.
+Mês 3-4: Node.js Avançado, Event Loop, Streams, e Worker Threads.
+Mês 5-6: Bancos RDBMS/NoSQL, Otimização de Queries (PostgreSQL, Redis).
+Mês 7-8: React Moderno, Server Components, SSR vs SPA, Estado Complexo.
+Mês 9-10: DevOps, CI/CD, Docker, Kubernetes, Serverless Cloud.
+Mês 11-12: Padrões de Microsserviços, Mensageria (Kafka/RabbitMQ) e Projeto Final.
+`;
+      const prompt = `You are a Universal TDAH Mentor. Analyze the following list of missions the student has completed:
+${JSON.stringify(completedItems)}
+
+Using ONLY the provided Post-Graduation Syllabus (Ementa Pós-Graduação Full-Stack), determine their current level and suggest which specific Module/Month they should study next. Provide a very short, motivating response (2 paragraphs max) focusing on the exact next technical topic they should tackle based on what they've finished.
+
+${ragContext}`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-flash-lite",
+        contents: prompt,
+      });
+
+      res.json({ text: response.text });
+    } catch (e: any) {
+      console.error(e);
+      if (isQuotaError(e)) {
+         return res.json({ text: "O limite da API foi atingido. Descanse os olhos por 1 minuto e tente gerar a sugestão de módulo novamente!" });
+      }
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post("/api/summary", async (req, res) => {
     try {
       const { logbookEntries, focusData, completedMissionsCount } = req.body;
