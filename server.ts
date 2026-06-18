@@ -108,7 +108,7 @@ async function startServer() {
   // Chatbot mentor
   app.post("/api/chat", async (req, res) => {
     try {
-      const { messages, useDeepThinking, searchGrounding } = req.body;
+      const { messages, useDeepThinking, searchGrounding, useRag } = req.body;
       
       const model = useDeepThinking ? "gemini-3.1-pro-preview" : "gemini-3.5-flash";
       let systemInstruction = "You are the 'Mentor TDAH da Madrugada para Programação' as specified in the AGENTS.md system prompt. Keep it short, actionable, and focused on quick dopamine hits.";
@@ -116,6 +116,29 @@ async function startServer() {
         const agentsMd = require('fs').readFileSync(require('path').join(process.cwd(), 'AGENTS.md'), 'utf-8');
         systemInstruction = agentsMd;
       } catch(e) {}
+
+      if (useRag) {
+        const ragContext = `
+[CONTEXTO TÉCNICO INTERNO - RAG ATIVO]
+--- Ementa Pós-Graduação Full-Stack (12 Meses) ---
+Mês 1-2: Fundamentos de Arquitetura de Software, Clean Code e SOLID.
+Mês 3-4: Node.js Avançado, Event Loop, Streams, e Worker Threads.
+Mês 5-6: Bancos RDBMS/NoSQL, Otimização de Queries (PostgreSQL, Redis).
+Mês 7-8: React Moderno, Server Components, SSR vs SPA, Estado Complexo.
+Mês 9-10: DevOps, CI/CD, Docker, Kubernetes, Serverless Cloud.
+Mês 11-12: Padrões de Microsserviços, Mensageria (Kafka/RabbitMQ) e Projeto Final.
+
+--- Excerto Documentação Oficial (Modernidades) ---
+- React: Preconiza Server Components (RSC), Actions e concorrência para reduzir JS enviado ao cliente.
+- TypeScript: Uso de Omit/Pick, Generics estritos, 'satisfies' operator.
+- JavaScript: ECMAScript moderno (ES6+), Map/Set, Promises, async/await, e manipulação de DOM moderno.
+- Node.js: Preferência por módulos Nativos (test runner, node --watch, variáveis de ambiente sem dotenv).
+- Python: Contexto focado em Python 3.10+, Type Hints, Pydantic, FastAPI, list comprehensions, e f strings para código idiomático.
+
+Sintetize essas informações em sua resposta ao aluno, sendo rigorosamente técnico e orientando conforme essa grade e documentação.`;
+        
+        systemInstruction += `\n\n${ragContext}`;
+      }
 
       const config: any = {
         systemInstruction

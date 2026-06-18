@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Square, Mic, MicOff, Send, Lightbulb, Search, Loader2, Download } from 'lucide-react';
+import { Play, Square, Mic, MicOff, Send, Lightbulb, Search, Loader2, Download, BookOpen } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -39,6 +39,7 @@ export default function MentorChat({ activeTopic, isNightMode, isAutoFormatEnabl
   const [mode, setMode] = useState<'text' | 'voice'>('text');
   const [useHighThinking, setUseHighThinking] = useState(false);
   const [useSearch, setUseSearch] = useState(false);
+  const [useRag, setUseRag] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
   // Dictation state
@@ -164,7 +165,8 @@ export default function MentorChat({ activeTopic, isNightMode, isAutoFormatEnabl
         body: JSON.stringify({ 
           messages: [...messages, { role: 'user', parts: [{ text: userMsg }] }],
           useHighThinking: false,
-          useSearch: false
+          useSearch: false,
+          useRag: useRag
         })
       });
       if (!res.ok) {
@@ -233,7 +235,8 @@ export default function MentorChat({ activeTopic, isNightMode, isAutoFormatEnabl
         body: JSON.stringify({
           messages: updatedMessages,
           useDeepThinking: useHighThinking,
-          searchGrounding: useSearch
+          searchGrounding: useSearch,
+          useRag: useRag
         })
       });
       const data = await res.json();
@@ -426,6 +429,11 @@ export default function MentorChat({ activeTopic, isNightMode, isAutoFormatEnabl
                <label className="flex items-center gap-1.5 text-xs text-neutral-500 cursor-pointer hover:text-neutral-300">
                  <input type="checkbox" checked={useSearch} onChange={e => setUseSearch(e.target.checked)} className="rounded border-neutral-700 bg-neutral-800 text-indigo-500 focus:ring-offset-0 focus:ring-0" />
                  Pesquisa web
+               </label>
+               <label title="Ativa a consulta ao currículo da Pós-Graduação e DOCs (JS/TS/Python) via RAG" className="flex items-center gap-1.5 text-xs text-neutral-500 cursor-pointer hover:text-neutral-300">
+                 <input type="checkbox" checked={useRag} onChange={e => setUseRag(e.target.checked)} className="rounded border-neutral-700 bg-neutral-800 text-indigo-500 focus:ring-offset-0 focus:ring-0" />
+                 <BookOpen className="w-3.5 h-3.5" />
+                 RAG (Currículo & Docs)
                </label>
                <label title="O Mentor tentará organizar (lint/Prettier) automaticamente o seu código e indentação enquanto você digita no sandbox" className="flex items-center gap-1.5 text-xs text-neutral-500 cursor-pointer hover:text-neutral-300">
                  <input type="checkbox" checked={isAutoFormatEnabled} onChange={onToggleAutoFormat} className="rounded border-neutral-700 bg-neutral-800 text-indigo-500 focus:ring-offset-0 focus:ring-0" />

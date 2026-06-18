@@ -31,9 +31,17 @@ import {
   VolumeX,
   Keyboard,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  LayoutGrid,
+  Share2,
+  ExternalLink,
+  PictureInPicture,
+  Layers,
+  Smartphone,
+  Tablet
 } from "lucide-react";
 
+import { useExternalWindow } from "../hooks/useExternalWindow";
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -64,6 +72,311 @@ interface Lesson {
   defaultJs: string;
   isBugChallenge?: boolean;
 }
+
+interface Track {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  lessons: Lesson[];
+}
+
+const QUICK_SNIPPETS = {
+  html: [
+    { name: "🗂️ Tailwind Flexbox Row", desc: "Alinhamento flexível para organizar elementos horizontais com espaçamento moderno.", code: `\n<div class="flex flex-row items-center justify-between gap-4 p-4 bg-slate-900 rounded-xl">\n  <div class="text-xs font-mono text-slate-300">Item Esquerdo</div>\n  <div class="text-xs font-mono text-indigo-400">Item Direito</div>\n</div>` },
+    { name: "🎴 Tailwind Card Elegante", desc: "Estrutura de card com bordas suaves de madrugada e tipografia espaçada.", code: `\n<div class="max-w-sm rounded-2xl bg-zinc-900 border border-zinc-800 p-5 shadow-lg">\n  <h4 class="text-xs font-bold text-indigo-400 font-mono uppercase tracking-wider">Módulo 01</h4>\n  <h3 class="text-base font-bold text-white mt-1">Título do Card</h3>\n  <p class="text-xs text-zinc-400 mt-2">Corpo de texto minimalista com tipografia de alta legibilidade.</p>\n</div>` },
+    { name: "📊 Barra de Progresso", desc: "Indicador dinâmico de progresso horizontal em Tailwind.", code: `\n<div class="w-full bg-neutral-900 rounded-full h-2 overflow-hidden border border-neutral-800 shadow-inner">\n  <div class="bg-indigo-600 h-full rounded-full transition-all duration-500" style="width: 70%"></div>\n</div>` },
+    { name: "🏷️ Tag de Status", desc: "Pequeno badge brilhante para realçar conquistas ou estados de treino.", code: `\n<span class="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">ATIVO</span>` },
+    { name: "🔔 Alerta de Microvitória", desc: "Feedback visual positivo perfeito para registrar microvitórias da jornada.", code: `\n<div class="flex items-center gap-2.5 p-3 bg-indigo-500/5 border border-indigo-500/10 text-indigo-400 rounded-xl text-xs font-mono">\n  <span>💪</span>\n  <span>Microvitória! Você completou um checkpoint importante das aulas práticas da madrugada!</span>\n</div>` }
+  ],
+  css: [
+    { name: "📐 Center com CSS Grid", desc: "Centraliza o conteúdo interna e perfeitamente utilizando CSS Grid.", code: `\n/* Centralização Absoluta com Grid */\n.grid-center {\n  display: grid;\n  place-items: center;\n  min-height: 100px;\n}` },
+    { name: "🎭 Glassmorphism sutil", desc: "Design translúcido sofisticado com desfoque de fundo e borda delicada.", code: `\n/* Efeito Vidro Texturizado */\n.blur-card {\n  background: rgba(255, 255, 255, 0.03);\n  backdrop-filter: blur(8px);\n  -webkit-backdrop-filter: blur(8px);\n  border: 1px solid rgba(255, 255, 255, 0.08);\n}` },
+    { name: "⏳ Efeito Pulse Suave", desc: "Animação de pulsação suave em loop infinito para atrair atenção cognitiva.", code: `\n/* Keyframes de Pulsação de Foco */\n@keyframes soft-pulse {\n  0%, 100% { opacity: 0.8; transform: scale(1); }\n  50% { opacity: 1; transform: scale(1.02); }\n}\n.pulsing {\n  animation: soft-pulse 2s infinite ease-in-out;\n}` },
+    { name: "🌈 Efeito Arco-Íris Degradê", desc: "Gradiente que varia de colheres suavemente de forma cíclica.", code: `\n/* Gradiente Infinito Mutável */\n@keyframes hue-shift {\n  from { filter: hue-rotate(0deg); }\n  to { filter: hue-rotate(360deg); }\n}\n.rainbow-shift {\n  animation: hue-shift 10s linear infinite;\n}` },
+    { name: "📊 Scrollbar customizada", desc: "Substitui a barra de rolagem por uma trilha estilizada escura.", code: `\n/* Barra de rolagem discreta escurecida */\n::-webkit-scrollbar {\n  width: 5px;\n}\n::-webkit-scrollbar-track {\n  background: #0a0a0a;\n}\n::-webkit-scrollbar-thumb {\n  background: #1f1f1f;\n  border-radius: 9px;\n}` }
+  ],
+  js: [
+    { name: "⚡ Componente Funcional", desc: "Componente funcional básico do React com props tipadas e estado.", code: `\n// Componente Funcional React Completo\nimport React, { useState } from 'react';\n\ninterface CardProps {\n  titulo: string;\n  subtitulo?: string;\n}\n\nexport function CartaoTreino({ titulo, subtitulo }: CardProps) {\n  const [completado, setCompletado] = useState(false);\n  \n  return (\n    <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 text-slate-200">\n      <h3 className="text-sm font-bold text-white font-mono">{titulo}</h3>\n      {subtitulo && <p className="text-[10px] text-zinc-400 font-mono mt-0.5">{subtitulo}</p>}\n      <button \n        onClick={() => setCompletado(!completado)}\n        className="mt-3 px-3 py-1 text-[10px] font-mono rounded bg-indigo-600 hover:bg-indigo-500 transition-all text-white font-bold"\n      >\n        {completado ? "✅ Concluído!" : "Marcar como Feito"}\n      </button>\n    </div>\n  );\n}` },
+    { name: "⚛️ React useState Hook", desc: "Hook de controle de estado clássico das aplicações.", code: `\n// Declaração de Estado Reativo no React\nconst [dados, setDados] = useState("");` },
+    { name: "🛰️ React useEffect Hook", desc: "Inicialização ou sincronização de componentes pós-render.", code: `\n// Efeito Colateral para Carregamento de Recursos\nuseEffect(() => {\n  console.log("⚡ Componente montado com sucesso.");\n  // Insira sua lógica inicial aqui\n}, []);` },
+    { name: "🗺️ Array Map Helper", desc: "Mapeamento simplificado iterando sobre itens do array.", code: `\n// Loop de Mapeamento com Transformação do dado\nconst listaTransformada = itens.map((item, index) => {\n  console.log("Mapeando item " + index, item);\n  return item;\n});` },
+    { name: "🔍 Array Filter Helper", desc: "Filtra coleções locais de maneira reativa baseado em condições.", code: `\n// Filtragem rápida de dados com callback de verificação\nconst itensFiltrados = itens.filter(item => {\n  return item.ativo === true;\n});` },
+    { name: "🔄 Fetch API com Async/Await", desc: "Requisição assíncrona HTTP externa com tratamento de exceções.", code: `\n// Requisição assíncrona robusta utilizando Try/Catch\nasync function carregarDados() {\n  try {\n    const response = await fetch("https://api.github.com/users/franciscotaveira/events");\n    const data = await response.json();\n    console.log("⚡ Busca efetuada com sucesso!", data);\n  } catch (err) {\n    console.error("❌ Erro na busca assíncrona:", err);\n  }\n}` },
+    { name: "💾 LocalStorage Get/Set", desc: "Guarda e lê chave e valor em formato JSON persistente.", code: `\n// Persistência local no navegador\nconst chave = "minha-chave-tdah";\nlocalStorage.setItem(chave, JSON.stringify({ foco: true }));\nconst recuperado = JSON.parse(localStorage.getItem(chave) || "{}");\nconsole.log("⚡ Dados recuperados do Cache:", recuperado);` },
+    { name: "🛡️ Form Event PreventDefault", desc: "Captura submissão do formulário impedindo reloads.", code: `\n// Trata submissão de formulários e previne recarga padrão\nconst form = document.querySelector("form");\nif (form) {\n  form.addEventListener("submit", (e) => {\n    e.preventDefault();\n    console.log("⚡ Form interceptado de madrugada!");\n  });\n}` }
+  ]
+};
+
+const LAB_TEMPLATES = [
+  {
+    name: "🚀 Boilerplate HTML5 + Tailwind",
+    desc: "Estrutura básica HTML5 de madrugada pronta com CDN de Tailwind.",
+    html: `<!-- Boilerplate Moderno Tailwind -->
+<div class="min-h-screen flex items-center justify-center bg-slate-950 p-6 text-slate-100 font-sans">
+  <div class="max-w-md w-full bg-slate-900 rounded-3xl p-6 shadow-2xl border border-slate-800/80">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="p-3 bg-indigo-500/10 text-indigo-400 rounded-2xl text-xl animate-pulse">⚡</span>
+      <div>
+        <h2 class="text-sm font-extrabold text-white uppercase tracking-wider font-mono">Laboratório de Foco</h2>
+        <p class="text-[10px] text-indigo-400 font-mono">Estrutura base pronta</p>
+      </div>
+    </div>
+    
+    <p class="text-xs text-slate-400 leading-relaxed mb-6 font-mono">
+      Este é um ambiente isolado com suporte total a componentes estilizados com classes utilitárias do Tailwind CSS.
+    </p>
+    
+    <button id="btn-demo" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-xl shadow-lg shadow-indigo-600/10 active:scale-95 transition-all text-xs font-mono uppercase tracking-wider">
+      Disparar Evento
+    </button>
+  </div>
+</div>
+
+<!-- Script do CDN de Tailwind -->
+<script src="https://cdn.tailwindcss.com"></script>`,
+    css: `/* Adicione ajustes finos customizados aqui */
+body {
+  margin: 0;
+  padding: 0;
+}`,
+    js: `// Interatividade Boilerplate
+const btn = document.getElementById("btn-demo");
+if (btn) {
+  btn.addEventListener("click", () => {
+    console.log("⚡ [Sucesso] Evento de teste disparado!");
+    alert("Laboratório pronto! Crie seu MVP na Trilha Universal.");
+  });
+}`
+  },
+  {
+    name: "🧮 Calculadora Bento Grid",
+    desc: "Calculadora estilizada com layout de bento-grid e tratamentos de erro.",
+    html: `<div class="min-h-screen flex items-center justify-center bg-zinc-950 text-zinc-100 p-4 font-sans">
+  <div class="w-full max-w-xs bg-zinc-900 border border-zinc-800 rounded-3xl p-5 shadow-2xl">
+    <div class="mb-4 bg-zinc-950 border border-zinc-850 p-4 rounded-2xl text-right">
+      <div class="text-[10px] text-zinc-500 font-mono tracking-widest uppercase">Display</div>
+      <div id="calc-display" class="text-3xl font-bold font-mono truncate tracking-tight text-emerald-400 mt-1">0</div>
+    </div>
+    
+    <div class="grid grid-cols-4 gap-2 font-mono">
+      <button class="calc-btn bg-zinc-805 hover:bg-zinc-800 text-zinc-300 py-3 rounded-xl font-bold text-xs" data-val="C">C</button>
+      <button class="calc-btn bg-zinc-805 hover:bg-zinc-800 text-indigo-400 py-3 rounded-xl font-bold text-xs" data-val="/">/</button>
+      <button class="calc-btn bg-zinc-805 hover:bg-zinc-800 text-indigo-400 py-3 rounded-xl font-bold text-xs" data-val="*">*</button>
+      <button class="calc-btn bg-zinc-805 hover:bg-zinc-800 text-indigo-400 py-3 rounded-xl font-bold text-xs" data-val="-">-</button>
+      
+      <button class="calc-btn bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 py-3 rounded-xl font-bold" data-val="7">7</button>
+      <button class="calc-btn bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 py-3 rounded-xl font-bold" data-val="8">8</button>
+      <button class="calc-btn bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 py-3 rounded-xl font-bold" data-val="9">9</button>
+      <button class="calc-btn bg-zinc-805 hover:bg-zinc-800 text-indigo-400 py-3 rounded-xl font-bold text-xs" data-val="+">+</button>
+      
+      <button class="calc-btn bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 py-3 rounded-xl font-bold" data-val="4">4</button>
+      <button class="calc-btn bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 py-3 rounded-xl font-bold" data-val="5">5</button>
+      <button class="calc-btn bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 py-3 rounded-xl font-bold" data-val="6">6</button>
+      <button class="calc-btn bg-indigo-600 hover:bg-indigo-505 text-white row-span-2 rounded-xl flex items-center justify-center font-black" data-val="=">=</button>
+      
+      <button class="calc-btn bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 py-3 rounded-xl font-bold" data-val="1">1</button>
+      <button class="calc-btn bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 py-3 rounded-xl font-bold" data-val="2">2</button>
+      <button class="calc-btn bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 py-3 rounded-xl font-bold" data-val="3">3</button>
+      
+      <button class="calc-btn bg-zinc-900 border border-zinc-800/80 hover:bg-zinc-800 py-3 rounded-xl font-bold col-span-3" data-val="0">0</button>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.tailwindcss.com"></script>`,
+    css: `/* Transição ativa ao de cliques */
+.calc-btn {
+  transition: all 0.1s ease-in-out;
+}
+.calc-btn:active {
+  transform: scale(0.95);
+}`,
+    js: `// Lógica de cálculo bento
+const display = document.getElementById("calc-display");
+const buttons = document.querySelectorAll(".calc-btn");
+let currentInput = "";
+
+buttons.forEach(btn => {
+  btn.addEventListener("click", () => {
+    const value = btn.getAttribute("data-val");
+    
+    if (value === "C") {
+      currentInput = "0";
+    } else if (value === "=") {
+      try {
+        const res = Function('"use strict";return (' + currentInput + ')')();
+        console.log("🧮 Execução: " + currentInput + " = " + res);
+        currentInput = String(res);
+      } catch (err) {
+        console.error("🧮 Erro no parse ou cálculo matemático.");
+        currentInput = "Erro";
+      }
+    } else {
+      if (currentInput === "0" || currentInput === "Erro") {
+        currentInput = value;
+      } else {
+        currentInput += value;
+      }
+    }
+    
+    display.textContent = currentInput || "0";
+  });
+});`
+  },
+  {
+    name: "⏱️ Timer Pomodoro de Foco",
+    desc: "Cronômetro regressivo com alarme e estados estéticos de progresso.",
+    html: `<div class="min-h-screen flex items-center justify-center bg-neutral-950 p-6 text-neutral-200 font-sans">
+  <div class="max-w-xs w-full bg-neutral-900 border border-neutral-800 rounded-3xl p-6 text-center shadow-xl">
+    <h3 class="text-xs font-mono font-bold tracking-widest text-indigo-400 uppercase mb-4">🎯 POMODORO EM EXECUÇÃO</h3>
+    
+    <div class="relative w-36 h-36 mx-auto mb-6 flex items-center justify-center bg-neutral-950 rounded-full border-4 border-indigo-500/10 shadow-inner">
+      <div class="text-2xl font-black font-mono tracking-tight text-white animate-pulse" id="timer-text">25:00</div>
+    </div>
+    
+    <div class="flex items-center gap-2 justify-center mb-4">
+      <button id="btn-start" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-bold text-xs uppercase tracking-wider rounded-lg transition-all">Iniciar</button>
+      <button id="btn-reset" class="px-5 py-2 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 font-mono font-bold text-xs uppercase tracking-wider rounded-lg transition-all">Resetar</button>
+    </div>
+    
+    <p id="timer-status" class="text-[10px] text-neutral-500 font-mono">Pronto para iniciar nova jornada!</p>
+  </div>
+</div>
+<script src="https://cdn.tailwindcss.com"></script>`,
+    css: `/* Animando display de foco */
+#timer-text {
+  transition: color 0.5s ease;
+}`,
+    js: `// Lógica de cronômetro com console callbacks
+let timeLeft = 25 * 60;
+let timerId = null;
+const display = document.getElementById("timer-text");
+const btnStart = document.getElementById("btn-start");
+const btnReset = document.getElementById("btn-reset");
+const statusTxt = document.getElementById("timer-status");
+
+function updateDisplay() {
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  display.textContent = String(mins).padStart(2, '0') + ":" + String(secs).padStart(2, '0');
+}
+
+btnStart.addEventListener("click", () => {
+  if (timerId === null) {
+    timerId = setInterval(() => {
+      if (timeLeft <= 0) {
+        clearInterval(timerId);
+        timerId = null;
+        statusTxt.textContent = "Excelente! Hora de relaxar.";
+        console.log("⏱️ Alarme final de Pomodoro!");
+        btnStart.textContent = "Iniciar";
+      } else {
+        timeLeft--;
+        updateDisplay();
+      }
+    }, 1000);
+    btnStart.textContent = "Pausar";
+    statusTxt.textContent = "Foque plenamente no código...";
+    console.log("⏱️ Ciclo ativo carregado.");
+  } else {
+    clearInterval(timerId);
+    timerId = null;
+    btnStart.textContent = "Iniciar";
+    statusTxt.textContent = "Ciclo em pausa.";
+  }
+});
+
+btnReset.addEventListener("click", () => {
+  clearInterval(timerId);
+  timerId = null;
+  timeLeft = 25 * 60;
+  updateDisplay();
+  btnStart.textContent = "Iniciar";
+  statusTxt.textContent = "Cronômetro resetado.";
+  console.log("⏱️ Contador retornado a 25:00.");
+});`
+  },
+  {
+    name: "📝 Board de Prática Reativa",
+    desc: "Quadro de itens persistidos com filtragem reativa e remoção dinâmica.",
+    html: `<div class="min-h-screen bg-slate-950 p-6 text-slate-100 font-sans">
+  <div class="max-w-md mx-auto space-y-5">
+    <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl">
+      <h3 class="text-sm font-bold uppercase tracking-wider text-indigo-400 mb-3 font-mono">Quadro de Anotações Reativas</h3>
+      <div class="space-y-3">
+        <input id="note-input" type="text" placeholder="Escreva algo..." class="w-full bg-slate-950 border border-slate-800 text-xs text-slate-200 px-3 py-2 rounded-lg focus:outline-none focus:border-indigo-500 font-mono" />
+        <button id="add-note-btn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-xs py-2 rounded-lg font-bold uppercase transition-all">Registrar Memorando</button>
+      </div>
+    </div>
+    
+    <div class="space-y-2">
+      <div class="flex items-center justify-between text-xs font-mono text-slate-400 px-1">
+        <span>Histório Local</span>
+        <button id="clear-all-btn" class="text-red-400 hover:text-red-300">Zerar</button>
+      </div>
+      <div id="notes-list" class="space-y-2"></div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.tailwindcss.com"></script>`,
+    css: `/* Transição de itens */
+.note-card {
+  animation: slide-up 0.25s ease-out;
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}`,
+    js: `// Persistência com LocalStorage
+const input = document.getElementById("note-input");
+const addBtn = document.getElementById("add-note-btn");
+const list = document.getElementById("notes-list");
+const clearBtn = document.getElementById("clear-all-btn");
+
+let localNotes = JSON.parse(localStorage.getItem("lab-study-notes") || "[]");
+if (localNotes.length === 0) {
+  localNotes = ["Integrar Drizzle ORM", "Aprender TypeScript Enums"];
+}
+
+function render() {
+  list.innerHTML = "";
+  localNotes.forEach((note, index) => {
+    const card = document.createElement("div");
+    card.className = "note-card bg-slate-905 border border-slate-800/80 p-3 rounded-xl flex items-center justify-between gap-2";
+    card.innerHTML = \`
+      <span class="text-xs font-mono text-slate-200 select-text">\$\{note\}</span>
+      <button class="text-xs text-red-400 px-1.5 py-0.5 hover:bg-red-500/10 rounded font-mono" onclick="deleteNote(\${index})">Deletar</button>
+    \`;
+    list.appendChild(card);
+  });
+  localStorage.setItem("lab-study-notes", JSON.stringify(localNotes));
+}
+
+window.deleteNote = function(index) {
+  localNotes.splice(index, 1);
+  render();
+  console.log("📝 Log: Item índice " + index + " apagado.");
+};
+
+addBtn.addEventListener("click", () => {
+  const txt = input.value.trim();
+  if (txt) {
+    localNotes.unshift(txt);
+    input.value = "";
+    render();
+    console.log("📝 Log: Nova anotação reativa inserida!");
+  }
+});
+
+clearBtn.addEventListener("click", () => {
+  localNotes = [];
+  render();
+  console.log("📝 Log: Histórico de anotações zerado.");
+});
+
+render();`
+  }
+];
 
 interface Track {
   id: string;
@@ -527,6 +840,7 @@ export default function CodeSandbox({
   const [jsCode, setJsCode] = useState(activeLesson.defaultJs);
 
   const [copied, setCopied] = useState(false);
+  const [isSnapshotCopied, setIsSnapshotCopied] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
   const [lessonFinished, setLessonFinished] = useState(false);
   const [validationState, setValidationState] = useState<
@@ -537,6 +851,8 @@ export default function CodeSandbox({
   const [isZenMode, setIsZenMode] = useState(true);
   const [showTeoria, setShowTeoria] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showTemplatesDropdown, setShowTemplatesDropdown] = useState(false);
+  const [showSnippetsDropdown, setShowSnippetsDropdown] = useState(false);
   const [isSoundMuted, setIsSoundMuted] = useState(() => {
     try {
       return localStorage.getItem("lab_sound_muted") === "true";
@@ -544,6 +860,69 @@ export default function CodeSandbox({
       return false;
     }
   });
+
+  const [consoleLogs, setConsoleLogs] = useState<{type: 'log' | 'error' | 'warn', text: string}[]>([]);
+  const [keyboardSoundsEnabled, setKeyboardSoundsEnabled] = useState(true);
+
+  // Floating Preview States
+  const [isPreviewFloating, setIsPreviewFloating] = useState(false);
+  const [floatingPos, setFloatingPos] = useState({ x: 20, y: 80 });
+  const [floatingSize, setFloatingSize] = useState({ width: '40vw', height: '40vh' });
+  const [isDraggingFloating, setIsDraggingFloating] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  const { isExternalOpen, openExternalWindow, ExternalPortal } = useExternalWindow("Preview do Laboratório (Tela Dupla)");
+
+  useEffect(() => {
+    if (isDraggingFloating) {
+      const handleMouseMove = (e: MouseEvent) => {
+        setFloatingPos({
+          x: e.clientX - dragOffset.x,
+          y: e.clientY - dragOffset.y
+        });
+      };
+      const handleMouseUp = () => {
+        setIsDraggingFloating(false);
+      };
+      
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isDraggingFloating, dragOffset]);
+
+  const playKeyboardClack = () => {
+    if (isSoundMuted || !keyboardSoundsEnabled) return;
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const bandpass = audioCtx.createBiquadFilter();
+      const gain = audioCtx.createGain();
+
+      osc.connect(bandpass);
+      bandpass.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.type = 'triangle';
+      // Retro physical vibe: slight variations in pitch for clicking
+      const randomFreq = 950 + Math.random() * 350;
+      osc.frequency.setValueAtTime(randomFreq, audioCtx.currentTime);
+
+      bandpass.type = 'bandpass';
+      bandpass.frequency.setValueAtTime(1200, audioCtx.currentTime);
+      bandpass.Q.setValueAtTime(8, audioCtx.currentTime);
+
+      gain.gain.setValueAtTime(0.006, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.035);
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.04);
+    } catch (err) {}
+  };
 
   const playSound = (type: 'success' | 'error' | 'click') => {
     if (isSoundMuted) return;
@@ -652,6 +1031,29 @@ export default function CodeSandbox({
     setPreviewKey((prev) => prev + 1);
   }, [activeTrackIdx, activeLessonIdx]);
 
+  // Synchronize console logs from execution iframe in real time
+  useEffect(() => {
+    const handleConsoleFrameMsg = (event: MessageEvent) => {
+      if (event.data && typeof event.data === 'object' && event.data.type) {
+        const { type, content } = event.data;
+        if (type === 'CONSOLE_LOG') {
+          setConsoleLogs((prev) => [...prev, { type: 'log', text: content }]);
+        } else if (type === 'CONSOLE_ERROR') {
+          setConsoleLogs((prev) => [...prev, { type: 'error', text: content }]);
+        } else if (type === 'CONSOLE_WARN') {
+          setConsoleLogs((prev) => [...prev, { type: 'warn', text: content }]);
+        }
+      }
+    };
+    window.addEventListener('message', handleConsoleFrameMsg);
+    return () => window.removeEventListener('message', handleConsoleFrameMsg);
+  }, []);
+
+  // Auto clean console logs when user edits code or changes exercises
+  useEffect(() => {
+    setConsoleLogs([]);
+  }, [activeTrackIdx, activeLessonIdx]);
+
   // Play click sound on interactive navigation changes
   useEffect(() => {
     playSound('click');
@@ -697,6 +1099,14 @@ export default function CodeSandbox({
   // Global keyboard shortcuts for reduced clicks & extreme usability
   useEffect(() => {
     const handleShortcut = (e: KeyboardEvent) => {
+      // Escape key to leave fullscreen
+      if (e.key === "Escape" && isFullscreen) {
+        e.preventDefault();
+        setIsFullscreen(false);
+        playSound('click');
+        return;
+      }
+
       // 1. Check for Command/Control + Enter to verify code
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
@@ -774,7 +1184,8 @@ export default function CodeSandbox({
     activeTab,
     htmlCode,
     cssCode,
-    jsCode
+    jsCode,
+    isFullscreen
   ]);
 
   const combinedSrcDoc = useMemo(() => {
@@ -786,6 +1197,35 @@ export default function CodeSandbox({
         <style>
           ${cssCode}
         </style>
+        <script>
+          (function() {
+            const originalLog = console.log;
+            const originalError = console.error;
+            const originalWarn = console.warn;
+
+            console.log = function(...args) {
+              originalLog.apply(console, args);
+              const cleanMsg = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+              window.parent.postMessage({ type: 'CONSOLE_LOG', content: cleanMsg }, '*');
+            };
+
+            console.error = function(...args) {
+              originalError.apply(console, args);
+              const cleanMsg = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+              window.parent.postMessage({ type: 'CONSOLE_ERROR', content: cleanMsg }, '*');
+            };
+
+            console.warn = function(...args) {
+              originalWarn.apply(console, args);
+              const cleanMsg = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+              window.parent.postMessage({ type: 'CONSOLE_WARN', content: cleanMsg }, '*');
+            };
+
+            window.addEventListener('error', function(e) {
+              window.parent.postMessage({ type: 'CONSOLE_ERROR', content: e.message }, '*');
+            });
+          })();
+        </script>
       </head>
       <body>
         ${htmlCode}
@@ -793,7 +1233,7 @@ export default function CodeSandbox({
           try {
             ${jsCode}
           } catch(err) {
-            console.error("Erro no script:", err.message);
+            console.error("Erro no script: " + err.message);
           }
         </script>
       </body>
@@ -809,6 +1249,68 @@ export default function CodeSandbox({
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const generateSnapshot = () => {
+    try {
+      const jsonStr = JSON.stringify({
+        html: htmlCode,
+        css: cssCode,
+        js: jsCode
+      });
+      const encoded = btoa(encodeURIComponent(jsonStr));
+      const url = `${window.location.origin}${window.location.pathname}?ref=snapshot#snapshot=${encoded}`;
+      
+      navigator.clipboard.writeText(url);
+      setIsSnapshotCopied(true);
+      playSound('success');
+      console.log("📸 Snapshot link copiado! Cole para compartilhar o estado atual.");
+      
+      setTimeout(() => {
+        setIsSnapshotCopied(false);
+      }, 3000);
+    } catch (e) {
+      console.error("Erro ao gerar amostragem", e);
+      alert("Houve um erro ao tentar gerar o link de snapshot.");
+    }
+  };
+
+  // Restaura o snapshot se houver um na URL na montagem do componente
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith("#snapshot=")) {
+        try {
+          const encoded = hash.substring(10);
+          const decoded = decodeURIComponent(atob(encoded));
+          const payload = JSON.parse(decoded);
+          
+          if (payload) {
+            if (typeof payload.html === 'string') setHtmlCode(payload.html);
+            if (typeof payload.css === 'string') setCssCode(payload.css);
+            if (typeof payload.js === 'string') setJsCode(payload.js);
+            setPreviewKey((prev) => prev + 1);
+            playSound('success');
+            console.log("📸 Snapshot de estudo carregado com sucesso!");
+            
+            // Remove o snapshot da URL para não prender no reload
+            window.history.replaceState(null, "", window.location.pathname + window.location.search);
+          }
+        } catch (e) {
+          console.error("Erro ao carregar o snapshot da URL", e);
+        }
+      }
+    };
+    
+    handleHashChange();
+    
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  const openPreviewInNewWindow = () => {
+    playSound('click');
+    openExternalWindow();
   };
 
   const handleNextLevel = () => {
@@ -1038,6 +1540,29 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
     }
   };
 
+  const insertQuickSnippet = (snip: { name: string, code: string }) => {
+    playSound('success');
+    if (activeTab === "html") {
+      setHtmlCode((prev) => prev + snip.code);
+    } else if (activeTab === "css") {
+      setCssCode((prev) => prev + snip.code);
+    } else if (activeTab === "js") {
+      setJsCode((prev) => prev + snip.code);
+    }
+    setShowSnippetsDropdown(false);
+  };
+
+  const loadLabTemplate = (tpl: typeof LAB_TEMPLATES[0]) => {
+    if (confirm(`Deseja carregar o template "${tpl.name}"? Isso substituirá o código atual das abas HTML, CSS e JS do laboratório.`)) {
+      setHtmlCode(tpl.html);
+      setCssCode(tpl.css);
+      setJsCode(tpl.js);
+      setPreviewKey((prev) => prev + 1);
+      setShowTemplatesDropdown(false);
+      playSound('success');
+    }
+  };
+
   const restoreDefault = () => {
     if (confirm("Deseja redefinir este exercício de volta ao código padrão?")) {
       setHtmlCode(activeLesson.defaultHtml);
@@ -1055,6 +1580,23 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
         isFullscreen ? (isNightMode ? "bg-[#0a0a0a]" : "bg-[#111111]") : (isNightMode ? "bg-neutral-900/50 border-neutral-800" : "bg-neutral-900 border-neutral-800")
       )}
     >
+      {isFullscreen && (
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-indigo-950/45 border border-indigo-500/20 px-4 py-2.5 rounded-xl mb-4 text-xs font-mono text-indigo-300 animate-in fade-in duration-200">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+            <span className="font-bold text-white shrink-0">Ambiente Imersivo Ativo (Foco de Madrugada 🌌)</span>
+            <span className="text-neutral-500 hidden xs:inline">|</span>
+            <span className="text-neutral-400 hidden sm:inline">Sem distrações. Use o espaço total de codificação. Pressione <kbd className="bg-neutral-800 border border-neutral-700 px-1.5 py-0.2 rounded text-[10px] text-indigo-400 font-bold">ESC</kbd> para minimizar.</span>
+          </div>
+          <button
+            onClick={() => { playSound('click'); setIsFullscreen(false); }}
+            className="text-neutral-400 hover:text-white flex items-center gap-1 hover:underline transition-all bg-neutral-900/60 px-2 py-1 rounded border border-neutral-800"
+          >
+            <Minimize className="w-3.5 h-3.5" /> Minimizar Tela
+          </button>
+        </div>
+      )}
+
       {/* Track Selector Header */}
       <div className={cn("flex flex-wrap items-center justify-between gap-3 mb-4", isFullscreen && "sticky top-0 z-10 pb-4 border-b border-neutral-800 bg-inherit")}>
         <div className="flex items-center gap-2">
@@ -1074,6 +1616,19 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
               title={isSoundMuted ? "Ativar Sons de Dopamina 🔊" : "Silenciar Laboratório 🔇"}
             >
               {isSoundMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+            <button 
+              onClick={() => { playSound('click'); setKeyboardSoundsEnabled(prev => !prev); }}
+              className={cn(
+                "p-1.5 rounded-lg transition-colors flex items-center gap-1 border border-transparent",
+                keyboardSoundsEnabled && !isSoundMuted
+                  ? "bg-amber-500/15 text-amber-400 border-amber-500/20 hover:bg-amber-500/25" 
+                  : "bg-neutral-900 text-neutral-500 border-neutral-800 hover:bg-neutral-800 hover:text-neutral-400"
+              )}
+              title={keyboardSoundsEnabled ? "Sons de Digitação Mecânica Ativados ⌨️" : "Silenciar Teclado Mecânico 🔇"}
+            >
+              <Keyboard className="w-4 h-4" />
+              <span className="text-[8px] font-mono font-bold tracking-wider hidden sm:inline">{keyboardSoundsEnabled ? "TEC-TEC" : "MUDO"}</span>
             </button>
             <button 
               onClick={() => { playSound('click'); setIsZenMode(!isZenMode); }}
@@ -1368,8 +1923,8 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
       </div>
 
       {/* Editor File Selector Header */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => { playSound('click'); setActiveTab("html"); }}
             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${activeTab === "html" ? "bg-neutral-800 text-white border border-neutral-700/80" : "text-neutral-500 hover:text-neutral-300"}`}
@@ -1394,6 +1949,134 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
             script.js
             <kbd className="text-[8px] opacity-75 font-mono px-1 py-0.2 bg-neutral-900 rounded border border-neutral-700">Alt+3</kbd>
           </button>
+
+          {/* Template Selector Dropdown */}
+          <div className="relative inline-block text-left">
+            <div>
+              <button
+                type="button"
+                onClick={() => { playSound('click'); setShowTemplatesDropdown(!showTemplatesDropdown); }}
+                className={cn(
+                  "px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono transition-all flex items-center gap-1.5 border border-dashed",
+                  showTemplatesDropdown 
+                    ? "bg-indigo-600 text-white border-indigo-500" 
+                    : "bg-indigo-505/10 hover:bg-indigo-550/25 text-indigo-400 border-indigo-550/30 hover:text-indigo-300"
+                )}
+                id="menu-lab-templates"
+                aria-expanded="true"
+                aria-haspopup="true"
+              >
+                <LayoutGrid className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Templates de Código</span>
+                <span className="text-[9px] bg-indigo-500/20 text-indigo-300 px-1 py-0.5 rounded font-bold uppercase select-none tracking-widest hidden sm:inline">Rápido</span>
+              </button>
+            </div>
+
+            {showTemplatesDropdown && (
+              <div 
+                className="origin-top-left absolute left-0 mt-2 w-72 rounded-xl shadow-2xl bg-neutral-900 border border-neutral-800 focus:outline-none z-50 animate-in fade-in zoom-in-95 duration-100" 
+                role="menu" 
+                aria-orientation="vertical" 
+                aria-labelledby="menu-lab-templates"
+              >
+                <div className="p-3 border-b border-neutral-850 bg-neutral-950/60 rounded-t-xl">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 font-mono flex items-center gap-1">
+                    <Zap className="w-3.5 h-3.5 text-amber-500" /> Carregar Estrutura Rápida
+                  </span>
+                  <p className="text-[9px] text-neutral-500 font-mono mt-1">Carregue um boilerplate completo de madrugada sem perder tempo com código repetitivo.</p>
+                </div>
+                <div className="py-1 p-2 max-h-80 overflow-y-auto space-y-1.5 scrollbar-thin" role="none">
+                  {LAB_TEMPLATES.map((tpl, tIndex) => (
+                    <button
+                      key={tIndex}
+                      onClick={() => loadLabTemplate(tpl)}
+                      className="w-full text-left p-2.5 hover:bg-neutral-800/80 rounded-lg transition-all flex flex-col gap-0.5 border border-transparent hover:border-neutral-800"
+                      role="menuitem"
+                    >
+                      <span className="text-xs font-bold text-white font-mono">{tpl.name}</span>
+                      <span className="text-[10px] text-neutral-400 font-mono leading-relaxed line-clamp-2">{tpl.desc}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="p-2.5 bg-neutral-950/40 border-t border-neutral-850 rounded-b-xl flex justify-between items-center text-[9px] font-mono text-neutral-500">
+                  <span>Substitui HTML, CSS e JS</span>
+                  <button 
+                    onClick={() => setShowTemplatesDropdown(false)}
+                    className="hover:text-white"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Custom Snippets Library Dropdown */}
+          <div className="relative inline-block text-left">
+            <div>
+              <button
+                type="button"
+                onClick={() => { playSound('click'); setShowSnippetsDropdown(!showSnippetsDropdown); }}
+                className={cn(
+                  "px-2.5 py-1.5 rounded-lg text-xs font-bold font-mono transition-all flex items-center gap-1.5 border border-dashed",
+                  showSnippetsDropdown 
+                    ? "bg-amber-600 text-white border-amber-500" 
+                    : "bg-amber-505/10 hover:bg-amber-550/25 text-amber-400 border-amber-550/30 hover:text-amber-300"
+                )}
+                id="menu-lab-snippets"
+                aria-expanded="true"
+                aria-haspopup="true"
+                title="Insira componentes, hooks ou interatividade no seu editor atual com um clique"
+              >
+                <Code className="w-3.5 h-3.5 text-amber-400" />
+                <span>Atalhos & Snippets</span>
+                <span className="text-[9px] bg-amber-500/20 text-amber-300 px-1 py-0.5 rounded font-bold uppercase select-none tracking-widest hidden sm:inline">Biblioteca</span>
+              </button>
+            </div>
+
+            {showSnippetsDropdown && (
+              <div 
+                className="origin-top-left absolute left-0 mt-2 w-72 rounded-xl shadow-2xl bg-neutral-900 border border-neutral-800 focus:outline-none z-50 animate-in fade-in zoom-in-95 duration-100" 
+                role="menu" 
+                aria-orientation="vertical" 
+                aria-labelledby="menu-lab-snippets"
+              >
+                <div className="p-3 border-b border-neutral-850 bg-neutral-950/60 rounded-t-xl">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 font-mono flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Snippets Rápidos ({activeTab.toUpperCase()})
+                  </span>
+                  <p className="text-[9px] text-neutral-500 font-mono mt-1">
+                    Insira trechos de código e economize processos repetitivos nas suas produções.
+                  </p>
+                </div>
+                <div className="py-1 p-2 max-h-80 overflow-y-auto space-y-1.5 scrollbar-thin" role="none">
+                  {QUICK_SNIPPETS[activeTab as keyof typeof QUICK_SNIPPETS]?.map((snip, sIndex) => (
+                    <button
+                      key={sIndex}
+                      onClick={() => insertQuickSnippet(snip)}
+                      className="w-full text-left p-2.5 hover:bg-neutral-800/80 rounded-lg transition-all flex flex-col gap-0.5 border border-transparent hover:border-neutral-800"
+                      role="menuitem"
+                    >
+                      <div className="flex items-center justify-between gap-1 w-full">
+                        <span className="text-xs font-bold text-white font-mono truncate">{snip.name}</span>
+                        <span className="text-[8px] font-mono shrink-0 uppercase font-bold tracking-wider text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1 py-0.2 rounded">Inserir</span>
+                      </div>
+                      <span className="text-[10px] text-neutral-400 font-mono leading-relaxed line-clamp-2">{snip.desc}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="p-2.5 bg-neutral-950/40 border-t border-neutral-850 rounded-b-xl flex justify-between items-center text-[9px] font-mono text-neutral-500">
+                  <span>Insere na aba ativa atual</span>
+                  <button 
+                    onClick={() => setShowSnippetsDropdown(false)}
+                    className="hover:text-white"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -1431,6 +2114,49 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
             ) : (
               <>
                 <Copy className="w-3 h-3" /> Copiar Aba
+              </>
+            )}
+          </button>
+
+          <span className="text-neutral-700 font-mono hidden sm:inline">|</span>
+
+          <button
+            onClick={generateSnapshot}
+            className="text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 text-[10px] hidden sm:flex"
+            title="Gera um link compartilhável com seus códigos atuais"
+          >
+            {isSnapshotCopied ? (
+              <>
+                <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Snapshot na área de transferência!
+              </>
+            ) : (
+              <>
+                <Share2 className="w-3 h-3" /> Gerar Snapshot
+              </>
+            )}
+          </button>
+
+          <span className="text-neutral-700 font-mono">|</span>
+          
+          <button
+            onClick={() => { playSound('click'); setIsFullscreen(!isFullscreen); }}
+            className={cn(
+              "transition-all flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-mono border",
+              isFullscreen 
+                ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30 font-bold" 
+                : "bg-indigo-500/10 hover:bg-indigo-500/25 text-indigo-400 border-indigo-550/30 hover:text-indigo-300"
+            )}
+            title={isFullscreen ? "Minimizar (Sair do Modo Imersivo)" : "Expandir Laboratório para Tela Cheia (Foco Total)"}
+          >
+            {isFullscreen ? (
+              <>
+                <Minimize className="w-3 h-3 animate-pulse" />
+                <span>Minimizar</span>
+              </>
+            ) : (
+              <>
+                <Maximize className="w-3 h-3" />
+                <span className="font-bold">Tela Cheia</span>
               </>
             )}
           </button>
@@ -1586,7 +2312,10 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
       <div className="relative flex-1 flex flex-col min-h-[176px]">
         <textarea
           value={currentEditorCode()}
-          onChange={(e) => handleTextareaChange(e.target.value)}
+          onChange={(e) => {
+            handleTextareaChange(e.target.value);
+            playKeyboardClack();
+          }}
           onBlur={() => {
              if (isAutoFormatEnabled && !isGuideMode) {
                formatCode();
@@ -1618,27 +2347,102 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
         )}
       </div>
 
-      {/* Live Preview Area */}
-      <div className={cn("mt-4 flex flex-col", isFullscreen && "flex-1 min-h-[35vh]")}>
-        <div className="flex items-center justify-between px-3 py-1.5 bg-neutral-950 border border-neutral-800 border-b-0 rounded-t-lg text-xs text-neutral-500 shrink-0">
-          <span className="flex items-center gap-1.5">
-            <Monitor className="w-3.5 h-3.5" /> Visualização do Navegador
-          </span>
-          <button
-            onClick={() => setPreviewKey((prev) => prev + 1)}
-            className="hover:text-white transition-colors text-[10px] flex items-center gap-1"
-          >
-            <RefreshCw className="w-3" /> Atualizar
-          </button>
+      {/* Live Preview Area & Captured Real-time Console Terminal */}
+      <div className={cn("mt-4 grid grid-cols-1 md:grid-cols-2 gap-3.5", isFullscreen && "flex-1 min-h-[35vh]")}>
+        {/* Playable Live Preview browser */}
+        <div className="flex flex-col h-full min-h-[160px]">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-neutral-950 border border-neutral-800 border-b-0 rounded-t-lg text-xs text-neutral-500 shrink-0">
+            <span className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-wider">
+              <Monitor className="w-3.5 h-3.5 text-indigo-400" /> Visualização do Navegador
+            </span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { playSound('click'); setIsPreviewFloating(!isPreviewFloating); }}
+                className="hover:text-indigo-300 transition-colors text-[10.5px] font-mono flex items-center gap-1 text-indigo-400 font-bold"
+                title={isPreviewFloating ? "Fixar no Laboratório" : "Flutuar Painel de Preview na Tela"}
+              >
+                {isPreviewFloating ? <Layers className="w-3 h-3" /> : <PictureInPicture className="w-3 h-3" />}
+                {isPreviewFloating ? "Fixar" : "Flutuar"}
+              </button>
+              <span className="text-neutral-800 hidden sm:inline">|</span>
+              <button
+                onClick={openPreviewInNewWindow}
+                className="hover:text-amber-400 transition-colors text-[10.5px] font-mono flex items-center gap-1"
+                title="Abrir o resultado em uma nova janela para inspecionar com mais espaço"
+              >
+                <ExternalLink className="w-3" /> Nova Aba
+              </button>
+              <span className="text-neutral-800 hidden sm:inline">|</span>
+              <button
+                onClick={() => setPreviewKey((prev) => prev + 1)}
+                className="hover:text-white transition-colors text-[10.5px] font-mono flex items-center gap-1"
+              >
+                <RefreshCw className="w-3" /> Atualizar
+              </button>
+            </div>
+          </div>
+          <div className="bg-white rounded-b-lg border border-neutral-800 overflow-hidden h-40 flex-1 flex relative">
+            {isPreviewFloating ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-neutral-900 border border-neutral-800 text-neutral-500 font-mono text-xs gap-3">
+                <PictureInPicture className="w-6 h-6 text-neutral-600 animate-pulse" />
+                <span>Visualização Flutuante Ativa</span>
+                <button 
+                  onClick={() => { playSound('click'); setIsPreviewFloating(false); }}
+                  className="px-3 py-1 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded transition-colors text-[10px]"
+                >
+                  Restaurar ao Painel
+                </button>
+              </div>
+            ) : (
+              <iframe
+                key={previewKey}
+                title="Preview"
+                srcDoc={combinedSrcDoc}
+                className="w-full h-full bg-white flex-1"
+                sandbox="allow-scripts"
+              />
+            )}
+          </div>
         </div>
-        <div className={cn("bg-white rounded-b-lg border border-neutral-800 overflow-hidden", isFullscreen ? "flex-1 flex" : "h-32")}>
-          <iframe
-            key={previewKey}
-            title="Preview"
-            srcDoc={combinedSrcDoc}
-            className="w-full h-full bg-white flex-1"
-            sandbox="allow-scripts"
-          />
+
+        {/* Real-time TDAH Companion Terminal Logger */}
+        <div className="flex flex-col bg-neutral-950 rounded-lg border border-neutral-800 min-h-[160px] overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-neutral-900/60 border-b border-neutral-800/80 text-xs text-neutral-400 shrink-0">
+            <span className="flex items-center gap-1.5 font-mono font-bold uppercase tracking-wider text-[10px]">
+              <Terminal className="w-3.5 h-3.5 text-indigo-400" /> Console de Testes (Console Logs)
+            </span>
+            <button
+              onClick={() => setConsoleLogs([])}
+              className="text-[9.5px] font-mono hover:text-white text-neutral-500 hover:bg-neutral-850 px-1.5 py-0.5 rounded transition-all"
+            >
+              Limpar Logs
+            </button>
+          </div>
+          <div className="p-3 font-mono text-[11px] overflow-y-auto flex-1 space-y-1.5 bg-neutral-950/40 select-text max-h-[160px] scrollbar-thin">
+            {consoleLogs.length === 0 ? (
+              <span className="text-neutral-600 block italic leading-relaxed text-[10.5px] p-1 font-mono">
+                &gt; Nenhum log gerado ainda.<br />
+                &gt; Escreva <code className="text-amber-400 bg-neutral-900 border border-neutral-800 px-1 rounded mx-0.5">console.log("texto")</code> na aba Script (JS) e veja o resultado aparecer aqui em tempo real! ⚡
+              </span>
+            ) : (
+              consoleLogs.map((log, idx) => (
+                <div 
+                  key={idx} 
+                  className={cn(
+                    "border-l-2 pl-2.5 py-0.5 leading-relaxed text-[11.5px] shrink-0 animate-in fade-in slide-in-from-left-1 duration-150",
+                    log.type === 'error' ? 'text-red-400 border-red-500 bg-red-500/5' :
+                    log.type === 'warn' ? 'text-amber-400 border-amber-500 bg-amber-200/5' :
+                    'text-cyan-300 border-cyan-500 bg-cyan-500/5'
+                  )}
+                >
+                  <span className="text-[8px] text-neutral-500 uppercase font-extrabold tracking-widest mr-1.5 font-mono select-none">
+                    [{log.type}]
+                  </span>
+                  <span className="font-mono">{log.text}</span>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
 
@@ -1757,6 +2561,122 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
           </div>
         </div>
       </div>
+
+      {isPreviewFloating && createPortal(
+        <div 
+          className="fixed z-[110] bg-neutral-900 border border-neutral-700 shadow-2xl rounded-lg overflow-hidden flex flex-col resize"
+          style={{
+            left: floatingPos.x,
+            top: floatingPos.y,
+            width: floatingSize.width,
+            height: floatingSize.height,
+            minWidth: '320px',
+            minHeight: '240px',
+            resize: 'both' // enable CSS resize
+          }}
+        >
+          <div 
+            className="flex items-center justify-between px-3 py-2 bg-neutral-950 border-b border-neutral-800 cursor-move"
+            onPointerDown={(e) => {
+              setIsDraggingFloating(true);
+              setDragOffset({
+                x: e.clientX - floatingPos.x,
+                y: e.clientY - floatingPos.y
+              });
+            }}
+          >
+            <span className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-wider text-neutral-400 select-none pointer-events-none">
+              <PictureInPicture className="w-3.5 h-3.5 text-indigo-400" /> Preview Flutuante
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-neutral-700 hidden sm:inline">|</span>
+              <button
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => setFloatingSize({ width: '375px', height: '667px' })}
+                className="hover:text-white transition-colors text-neutral-500 text-[10.5px] p-0.5"
+                title="Tamanho Smartphone"
+              >
+                <Smartphone className="w-3 h-3" />
+              </button>
+              <button
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => setFloatingSize({ width: '768px', height: '1024px' })}
+                className="hover:text-white transition-colors text-neutral-500 text-[10.5px] p-0.5"
+                title="Tamanho Tablet"
+              >
+                <Tablet className="w-3 h-3" />
+              </button>
+              <button
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => setFloatingSize({ width: '1024px', height: '768px' })}
+                className="hover:text-white transition-colors text-neutral-500 text-[10.5px] p-0.5"
+                title="Tamanho Desktop"
+              >
+                <Monitor className="w-3 h-3" />
+              </button>
+              <span className="text-neutral-700 hidden sm:inline">|</span>
+              <button
+                onClick={() => setPreviewKey((prev) => prev + 1)}
+                className="hover:text-white transition-colors text-neutral-500 text-[10.5px]"
+                title="Atualizar"
+              >
+                <RefreshCw className="w-3" />
+              </button>
+              <button
+                onClick={openPreviewInNewWindow}
+                className="hover:text-amber-400 transition-colors text-neutral-500 text-[10.5px]"
+                title="Abrir em Nova Aba"
+              >
+                <ExternalLink className="w-3" />
+              </button>
+              <button
+                onClick={() => { playSound('click'); setIsPreviewFloating(false); }}
+                className="hover:text-white transition-colors text-neutral-500 ml-1"
+                title="Restaurar ao Painel"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+          <iframe
+            key={`floating-${previewKey}`}
+            title="Floating Preview"
+            srcDoc={combinedSrcDoc}
+            className="w-full h-full bg-white flex-1 relative z-0 pointer-events-auto"
+            sandbox="allow-scripts"
+          />
+          {/* Invisible overlay while dragging to prevent iframe from swallowing mouse events */}
+          {isDraggingFloating && <div className="absolute inset-0 z-10" />}
+        </div>,
+        document.body
+      )}
+
+      {isExternalOpen && (
+        <ExternalPortal>
+          <div className="w-full h-full flex flex-col bg-neutral-900 overflow-hidden">
+             <div className="flex items-center justify-between px-4 py-2 flex-shrink-0 bg-neutral-950 border-b border-neutral-800 pointer-events-auto">
+               <span className="flex items-center gap-1.5 font-mono text-xs font-bold uppercase tracking-wider text-neutral-400 select-none">
+                 <Monitor className="w-4 h-4 text-indigo-400" /> Preview Multi-Telas
+               </span>
+               <div className="flex items-center gap-3">
+                 <button
+                   onClick={() => setPreviewKey((prev) => prev + 1)}
+                   className="hover:text-white transition-colors text-neutral-400 text-xs flex items-center gap-1"
+                 >
+                   <RefreshCw className="w-3.5 h-3.5" /> Atualizar
+                 </button>
+               </div>
+             </div>
+             <iframe
+               key={`external-${previewKey}`}
+               title="External Multi-monitor Preview"
+               srcDoc={combinedSrcDoc}
+               className="w-full h-full bg-white flex-1"
+               sandbox="allow-scripts"
+             />
+          </div>
+        </ExternalPortal>
+      )}
     </div>
   );
 

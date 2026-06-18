@@ -11,6 +11,7 @@ import {
 import CodeSandbox from './CodeSandbox';
 import MentorChat from './MentorChat';
 import Logbook from './Logbook';
+import TechCareerRoadmap from './TechCareerRoadmap';
 import { StudyStatsDashboard } from './StudyStatsDashboard';
 import { AIPackageSuggester } from './AIPackageSuggester';
 import { curriculums } from '../data/curriculum';
@@ -672,6 +673,17 @@ export default function SaaSTabsArea(props: SaaSTabsAreaProps) {
               </ResponsiveContainer>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* TAB 5: CARREIRA TECH & ROADMAP */}
+      {activeSaaSTab === 'career' && (
+        <div className="animate-in fade-in duration-300">
+          <TechCareerRoadmap
+            isNightMode={isNightMode}
+            completedItems={completedItems}
+            onToggleItem={handleToggleSelectionOnly}
+          />
         </div>
       )}
     </div>
