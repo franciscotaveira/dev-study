@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lightbulb, Code2, Zap, BookOpen, TerminalSquare, Layers, Fingerprint } from 'lucide-react';
+import { Lightbulb, Code2, Zap, BookOpen, TerminalSquare, Layers, Fingerprint, ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface ProTipsSidebarProps {
   isNightMode?: boolean;
@@ -54,11 +54,14 @@ const PRO_TIPS = [
 export function ProTipsSidebar({ isNightMode = true }: ProTipsSidebarProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const DURATION_MS = 30000; // 30 seconds
 
   useEffect(() => {
     setProgress(0);
+    if (isCollapsed) return;
+
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
@@ -70,17 +73,43 @@ export function ProTipsSidebar({ isNightMode = true }: ProTipsSidebarProps) {
     }, 100);
 
     return () => clearInterval(interval);
-  }, [currentIndex]);
+  }, [currentIndex, isCollapsed]);
 
   const currentTip = PRO_TIPS[currentIndex];
   const Icon = currentTip.icon;
 
+  if (isCollapsed) {
+    return (
+      <div className={`hidden xl:flex w-16 shrink-0 border-l p-4 flex-col items-center sticky top-0 h-screen transition-colors duration-500 ${isNightMode ? 'bg-[#09090b]/90 border-neutral-900/60' : 'bg-neutral-50/95 border-neutral-200/80'}`}>
+        <button 
+          onClick={() => setIsCollapsed(false)}
+          className={`p-2 rounded-lg mb-6 transition-colors ${isNightMode ? 'hover:bg-neutral-900 text-neutral-400' : 'hover:bg-neutral-200 text-neutral-600'}`}
+          title="Expand Pro-Tips"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+        <div className={`p-2 rounded-full mb-4 ${isNightMode ? 'bg-indigo-500/10 text-indigo-400' : 'bg-indigo-100 text-indigo-600'}`}>
+          <Lightbulb className="w-5 h-5" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`hidden xl:flex w-72 shrink-0 border-l p-5 flex-col sticky top-0 h-screen transition-colors duration-500 overflow-y-auto custom-scrollbar ${isNightMode ? 'bg-[#09090b]/90 border-neutral-900/60' : 'bg-neutral-50/95 border-neutral-200/80'}`}>
       
-      <div className="flex items-center gap-2 mb-6 text-indigo-500">
-        <Lightbulb className="w-5 h-5 animate-pulse" />
-        <h3 className={`font-bold text-sm tracking-tight ${isNightMode ? 'text-white' : 'text-neutral-900'}`}>30-Sec Pro-Tips</h3>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2 text-indigo-500">
+          <Lightbulb className="w-5 h-5 animate-pulse" />
+          <h3 className={`font-bold text-sm tracking-tight ${isNightMode ? 'text-white' : 'text-neutral-900'}`}>30-Sec Pro-Tips</h3>
+        </div>
+        <button 
+          onClick={() => setIsCollapsed(true)}
+          className={`p-1.5 rounded-lg transition-colors ${isNightMode ? 'text-neutral-500 hover:text-white hover:bg-neutral-900' : 'text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200'}`}
+          title="Collapse Pro-Tips"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
       </div>
 
       <p className="text-xs text-neutral-500 mb-8 leading-relaxed">
