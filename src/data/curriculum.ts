@@ -342,6 +342,73 @@ export const curriculums: Record<string, { id: string, name: string, description
         ]
       }
     ]
+  },
+  google_support: {
+    id: "google_support",
+    name: "Suporte de TI: Fundamentos (Google)",
+    description: "Prepare-se para o mercado de tecnologia dominando hardware, redes, sistemas operacionais e solução de problemas.",
+    modules: [
+      {
+        title: "Módulo 1: Introdução à TI e Computação",
+        items: [
+          "1.1 O que é TI e Suporte de TI?",
+          "1.2 Do Ábaco ao Computador Moderno",
+          "1.3 Linguagem de Computador (Sistema Binário)",
+          "1.4 Introdução à Visão Geral da Arquitetura do Computador",
+          "1.5 Desafio do Módulo 1: Fundamentos Básicos"
+        ]
+      },
+      {
+        title: "Módulo 2: Componentes e Hardware do Computador",
+        items: [
+          "2.1 CPU, Placas-mãe e Memória RAM",
+          "2.2 Armazenamento Físico (Discos Rígidos, HDD/SSD)",
+          "2.3 Fontes de Alimentação e Periféricos",
+          "2.4 Como montar tudo: Adicionando Componentes",
+          "2.5 Desafio do Módulo 2: Componentes e Hardware"
+        ]
+      },
+      {
+        title: "Módulo 3: Instalação e Uso de Sistemas Operacionais",
+        items: [
+          "3.1 Componentes de um SO (Kernel, Espaço do Usuário)",
+          "3.2 Gerenciamento de Processos e Memória Virtual",
+          "3.3 Instalação Prática do Windows 10 e do Linux",
+          "3.4 Prática: Criando Pastas via Terminal (Windows e Linux)",
+          "3.5 Desafio do Módulo 3: Instalação e Uso de SO"
+        ]
+      },
+      {
+        title: "Módulo 4: Redes de Computadores",
+        items: [
+          "4.1 Noções Básicas de Rede e Hardware de Rede",
+          "4.2 O Modelo TCP/IP e o funcionamento da Web",
+          "4.3 História, Limitações e o futuro da Internet",
+          "4.4 Privacidade e Segurança: Mantendo Hackers longe",
+          "4.5 Desafio do Módulo 4: Noções de Rede"
+        ]
+      },
+      {
+        title: "Módulo 5: Interagindo com o Software",
+        items: [
+          "5.1 Como o software é criado: Código, scripting e programação",
+          "5.2 Tipos de Software e Sistemas de Controle de Versão",
+          "5.3 Gerenciamento de Software (Instalação e Remoção)",
+          "5.4 Automatização de processos via terminal",
+          "5.5 Desafio do Módulo 5: Gerenciamento de Software"
+        ]
+      },
+      {
+        title: "Módulo 6: Práticas Recomendadas de Solução de Problemas",
+        items: [
+          "6.1 Metodologia de suporte e Isolamento de problemas",
+          "6.2 Atendimento ao Cliente e Habilidades Interpessoais",
+          "6.3 Sistemas de Emissão de Tíquetes e Documentação",
+          "6.4 Preparando-se para o mercado: Currículo e Entrevista",
+          "6.5 Desafio do Módulo 6: Solução de Problemas e Carreira"
+        ]
+      }
+    ]
   }
 };
 

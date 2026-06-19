@@ -1856,9 +1856,10 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
           {!lessonFinished && (
             <button
               onClick={handleVerifyCode}
-              className="flex items-center justify-center gap-2 w-full py-2 bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs rounded-lg transition-colors border border-indigo-400/20"
+              className="flex items-center justify-center gap-2 w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-black text-sm rounded-xl transition-all border border-indigo-400/30 shadow-[0_0_15px_rgba(99,102,241,0.2)] hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] active:scale-[0.98]"
             >
-              <CheckCircle className="w-4 h-4" /> Verificar Código
+              <CheckCircle className="w-4.5 h-4.5 text-emerald-400 animate-pulse" />
+              <span>Rodar e Testar meu Código (Fazer o Teste) ⚡</span>
             </button>
           )}
 
@@ -2632,22 +2633,25 @@ Estou exercitando o laboratório prático web. Avalie meu progresso, dê dicas s
               </button>
               <span className="text-neutral-700 hidden sm:inline">|</span>
               <button
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => setPreviewKey((prev) => prev + 1)}
-                className="hover:text-white transition-colors text-neutral-500 text-[10.5px]"
+                className="hover:text-white transition-colors text-neutral-500 text-[10.5px] p-0.5"
                 title="Atualizar"
               >
                 <RefreshCw className="w-3" />
               </button>
               <button
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={openPreviewInNewWindow}
-                className="hover:text-amber-400 transition-colors text-neutral-500 text-[10.5px]"
+                className="hover:text-amber-400 transition-colors text-neutral-500 text-[10.5px] p-0.5"
                 title="Abrir em Nova Aba"
               >
                 <ExternalLink className="w-3" />
               </button>
               <button
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => { playSound('click'); setIsPreviewFloating(false); }}
-                className="hover:text-white transition-colors text-neutral-500 ml-1"
+                className="hover:text-white transition-colors text-neutral-500 ml-1 p-0.5"
                 title="Restaurar ao Painel"
               >
                 <X className="w-4 h-4" />
